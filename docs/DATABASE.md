@@ -1,122 +1,125 @@
 # Database
 
-## Technology Decision: Prisma 7 + libsql
+## Target: PostgreSQL (Supabase or Neon)
 
-Prisma 7 removed the `url` field from the `datasource` block in `schema.prisma`. The database URL must now live in `prisma.config.ts` using the `defineConfig` helper. Locally the adapter used is `@prisma/adapter-libsql`, which accepts `{ url }` directly.
+**Production uses Postgres only.** Create a project at [Supabase](https://supabase.com) or [Neon](https://neon.tech), set `DATABASE_URL`, run migrations. **Do not** deploy with `file:./dev.db`.
 
-An additional wrinkle: libsql requires an **absolute** `file:///` URL. Relative paths like `file:./dev.db` are rejected. `src/lib/db.ts` contains a `resolveDbUrl()` function that converts any relative `file:` URL to `file:///abs/path/dev.db` using `path.resolve(process.cwd(), ...)`.
+**Not used:** MongoDB, SQLite in production.
 
-Config lives in `prisma.config.ts`:
+See `docs/DEPLOY.md` (C1).
+
+---
+
+## Current code (legacy local dev — being replaced)
+
+Until C1 ships, the repo may still use:
+
+- `provider = "sqlite"` in `prisma/schema.prisma`
+- Prisma 7 + `@prisma/adapter-libsql`
+- `prisma.config.ts` with `datasource: { url: 'file:./dev.db' }`
+- `src/lib/db.ts` and `scripts/db.ts` with libsql adapter + `pathToFileURL()` for Windows
+
+**New features should not depend on SQLite long-term.** Point local `.env` at a **dev Postgres** database when possible (Neon branch or Supabase second DB).
+
+---
+
+## Prisma 7 configuration
+
+URL lives in `prisma.config.ts` via `defineConfig()`, not in `schema.prisma` datasource block.
+
+**Postgres (target):**
 ```ts
+import { defineConfig } from 'prisma/config';
+
 export default defineConfig({
-  schema: path.join('prisma', 'schema.prisma'),
-  datasource: { url: 'file:./dev.db' },
+  schema: 'prisma/schema.prisma',
+  datasource: {
+    url: process.env.DATABASE_URL!,
+  },
 });
 ```
 
-## Why Asset.type Is String, Not Enum
+**App client (target):**
+```ts
+import { PrismaClient } from '@prisma/client';
+export const prisma = new PrismaClient();
+```
 
-Prisma's SQLite provider does not support native enum columns. Declaring `type` as an enum in the schema would cause a migration error. Instead `type` is a plain `String` and the import script enforces that only `"PHOTO"` or `"VIDEO"` are ever written. All query-side code uses `.toUpperCase()` when filtering by type.
+No libsql adapter on Postgres.
+
+---
+
+## Why Asset.type is String (for now)
+
+SQLite has no native enums. On Postgres you *may* add `enum AssetType { PHOTO VIDEO }` during C1 migration — optional; string + app validation still works.
+
+---
 
 ## Models
+
+(Unchanged — see prior docs. Cloud migration notes below.)
 
 ### Album
 
 | Field | Type | Notes |
 |---|---|---|
 | id | String (cuid) | Primary key |
-| title | String | Display name, e.g. "Ceremony" |
-| slug | String (unique) | URL-safe identifier, e.g. "ceremony" |
-| relativePath | String? | Subfolder path relative to `media/wedding/` |
-| coverAssetId | String? | Manual override for cover image (not yet wired to UI) |
-| sortOrder | Int | Controls display order on /albums page |
-| isHidden | Boolean | Soft-hide album from gallery |
-| createdAt / updatedAt | DateTime | Auto-managed |
-| assets | Asset[] | Relation — all assets in this album |
-
-Indexes: `slug` (unique lookup), `isHidden` (filtering).
+| title | String | Display name |
+| slug | String (unique) | URL identifier |
+| relativePath | String? | Source folder under `media/wedding/` |
+| coverAssetId | String? | Not wired to UI |
+| sortOrder | Int | Album list order |
+| isHidden | Boolean | Soft-hide |
+| createdAt / updatedAt | DateTime | |
 
 ### Asset
 
 | Field | Type | Notes |
 |---|---|---|
-| id | String (cuid) | Primary key, used in all media API URLs |
+| id | String (cuid) | Used in URLs |
 | type | String | `"PHOTO"` or `"VIDEO"` |
 | albumId | String? | FK → Album |
-| filename | String | Original filename |
-| originalPath | String | Absolute path to source file on disk |
-| relativePath | String (unique) | Path relative to `media/wedding/` — dedup key |
-| extension | String | e.g. `.jpg`, `.mp4` |
-| mimeType | String? | e.g. `image/jpeg` |
-| fileSizeBytes | Int | Raw file size |
-| width / height | Int? | Pixel dimensions (photos only) |
-| durationSeconds | Float? | Video duration |
-| thumbnailPath | String? | Relative URL stored in DB, e.g. `/generated/thumbnails/<id>.webp` |
-| posterPath | String? | Video poster frame path |
-| takenAt | DateTime? | EXIF date if present, otherwise null |
-| modifiedAt | DateTime | File system mtime |
-| isHidden | Boolean | Soft-hide from gallery |
-| isHighlight | Boolean | True for assets in the `Highlights` folder |
-| isAvailable | Boolean | Set false during re-import for missing files, then deleted |
-| checksum | String? | Reserved for future dedup — not yet computed |
-| createdAt / updatedAt | DateTime | Auto-managed |
+| filename | String | |
+| originalPath | String | **Server-only** — local path today; → R2 key in cloud |
+| relativePath | String (unique) | Dedup key for import |
+| extension, mimeType, fileSizeBytes | | |
+| width, height, durationSeconds | | |
+| thumbnailPath, posterPath | String? | Today: local paths; target: R2 keys or CDN URLs |
+| takenAt, modifiedAt | DateTime | |
+| isHidden, isHighlight, isAvailable | Boolean | |
+| checksum | String? | Future dedup |
 
-Indexes and why they matter at 10 000+ assets:
-
-| Index | Purpose |
-|---|---|
-| `type` | Filter photos vs videos without full scan |
-| `albumId` | Fast album page load |
-| `filename` | Keyword search |
-| `takenAt` | Default sort (newest/oldest) |
-| `modifiedAt` | Secondary sort fallback |
-| `isHidden` | Exclude hidden assets in every query |
-| `isAvailable` | Exclude missing files in every query |
+**Planned cloud fields (C2/C3):** `storageKey`, `thumbnailKey`, or denormalized `cdnThumbnailUrl` — add via migration when implementing R2.
 
 ### SiteSetting
 
-Single-row configuration table (id is a cuid but only one row is expected).
-
 | Field | Notes |
 |---|---|
-| appName | Defaults to "Wedding Memories" |
-| coupleNames | Display names, not yet shown in UI |
-| weddingDate | Not yet shown in UI |
-| guestPasswordHash | Not used yet — auth compares plaintext via env var |
-| requirePassword | Always true in current build |
+| guestPasswordHash | **Target:** bcrypt hash for C5 |
+| requirePassword | true |
+| appName, coupleNames, weddingDate | UI TBD |
 
-### FuturePerson (schema-only placeholder)
+### FuturePerson / FutureFaceMatch
 
-| Field | Notes |
-|---|---|
-| id | cuid |
-| displayName | Person's name for /find-yourself UI |
-| coverAssetId | Profile photo asset |
-| isVisible | Whether to show this person publicly |
+Schema placeholders for v0.5 — unchanged.
 
-### FutureFaceMatch (schema-only placeholder)
+---
 
-| Field | Notes |
-|---|---|
-| personId | FK → FuturePerson (enforced in app, not DB FK) |
-| assetId | FK → Asset |
-| boundingBoxJson | JSON string of face bounding box coordinates |
-| confidence | 0–1 match confidence from recognition provider |
-| provider | e.g. `"rekognition"`, `"local-clustering"` |
-| externalFaceId | Provider's face ID for subsequent calls |
-| isApproved | Admin approval before showing to guests |
+## Migrations
 
-## Running Migrations
-
+**Postgres (production):**
 ```bash
-npx prisma migrate dev --name <migration-name>
+npx prisma migrate deploy
 ```
 
-During development the `dev.db` file is created automatically on first run if it doesn't exist. To apply schema changes without resetting data:
-
+**Local (legacy SQLite — until removed):**
 ```bash
-npx prisma migrate dev
+npx prisma migrate dev --name <name>
 ```
+
+After C1: delete or archive SQLite migrations if starting fresh on empty Postgres; or use `prisma db push` once for greenfield — team choice documented in CHANGELOG when done.
+
+---
 
 ## Prisma Studio
 
@@ -124,12 +127,23 @@ npx prisma migrate dev
 npx prisma studio
 ```
 
-Opens a browser-based GUI at `http://localhost:5555`. Useful for inspecting assets and albums during development.
+Works against whichever `DATABASE_URL` is in `.env`.
 
-## Future Schema Evolution
+---
 
-When face recognition is added:
-1. Uncomment or extend `FuturePerson` and `FutureFaceMatch` — the models are already in the schema.
-2. Add a proper foreign key from `FutureFaceMatch.personId → FuturePerson.id` (currently the relation is app-level only).
-3. Add a `FutureFaceMatch` relation to `Asset` for reverse lookup.
-4. Wire `SiteSetting.guestPasswordHash` to bcrypt — currently auth compares plaintext env var.
+## Setup checklist (developer)
+
+1. Create Supabase or Neon project
+2. Set `DATABASE_URL` in `.env` (and Vercel)
+3. `npx prisma generate`
+4. `npx prisma migrate deploy`
+5. Remove libsql deps when C1 complete
+6. Update `docs/DEPLOY.md` if connection pooling (Supabase pooler port 6543) is required for Vercel serverless
+
+---
+
+## Future schema evolution
+
+- Face recognition tables (v0.5)
+- `guestPasswordHash` wired in C5
+- R2 storage keys on Asset (C2/C3)

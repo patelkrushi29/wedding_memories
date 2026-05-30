@@ -1,5 +1,15 @@
 # Storage
 
+## Production target: Cloudflare R2 + CDN
+
+**Default for go-live:** [Cloudflare R2](https://developers.cloudflare.com/r2/) (S3-compatible) with public or custom-domain CDN URLs.
+
+**Why not Cloudinary at ~10k photos + ~10 hour-long videos:** storage and video bandwidth cost more than R2 for this library size. See `docs/DEPLOY.md`.
+
+**Why not local disk in production:** Vercel has no persistent filesystem; ~50–90+ GB does not belong on the app server.
+
+---
+
 ## StorageProvider Interface
 
 `src/lib/storage/types.ts`:
@@ -13,74 +23,101 @@ export interface StorageProvider {
 }
 ```
 
-All four methods take a partial asset object and return a URL string. UI components call these methods and render the URL — they never construct file paths directly.
+UI components use returned URLs only — never disk paths or R2 keys from the client.
 
 ---
 
-## LocalStorageProvider
+## LocalStorageProvider (current — legacy dev)
 
 **File:** `src/lib/storage/localStorageProvider.ts`
 
-The current implementation. Routes all media through the Next.js API layer:
+Routes media through Next.js API (reads from `public/generated/` and `originalPath` on disk):
 
 | Method | Returns |
 |---|---|
-| `getThumbnailUrl(asset)` | `/api/media/${asset.id}/thumbnail` |
-| `getPosterUrl(asset)` | `/api/media/${asset.id}/thumbnail` (same endpoint — poster is stored as thumbnailPath) |
-| `getPreviewUrl(asset)` | `/api/media/${asset.id}/preview` |
-| `getDownloadUrl(asset)` | `/api/media/${asset.id}/download` |
+| `getThumbnailUrl` | `/api/media/${id}/thumbnail` |
+| `getPosterUrl` | `/api/media/${id}/thumbnail` |
+| `getPreviewUrl` | `/api/media/${id}/preview` |
+| `getDownloadUrl` | `/api/media/${id}/download` |
 
-The API endpoints look up the actual file path from the database on the server side. The client never knows or sends file paths.
+**Status:** Not imported anywhere (dead code). Replace with R2 provider in C2/S6.
 
-Note: `posterPath` is not yet separately routed — videos store their poster frame path in both `posterPath` and `thumbnailPath`, so the thumbnail endpoint serves poster frames correctly.
-
----
-
-## How to Add a Cloud Provider
-
-1. Create a new file, e.g. `src/lib/storage/cloudinaryProvider.ts`.
-2. Implement the `StorageProvider` interface:
-
-```ts
-import { StorageProvider } from './types';
-
-export const cloudinaryProvider: StorageProvider = {
-  getThumbnailUrl(asset) {
-    // return a Cloudinary transformation URL, e.g.:
-    return `https://res.cloudinary.com/<cloud>/image/upload/w_600,f_webp/${asset.id}`;
-  },
-  getPosterUrl(asset) {
-    return `https://res.cloudinary.com/<cloud>/video/upload/so_1,f_jpg/${asset.id}`;
-  },
-  getPreviewUrl(asset) {
-    return `https://res.cloudinary.com/<cloud>/image/upload/${asset.id}`;
-  },
-  getDownloadUrl(asset) {
-    return `https://res.cloudinary.com/<cloud>/image/upload/fl_attachment/${asset.id}`;
-  },
-};
-```
-
-3. In whichever module currently imports `localStorageProvider`, swap the import:
-
-```ts
-// Before
-import { localStorageProvider as storage } from '@/lib/storage/localStorageProvider';
-
-// After
-import { cloudinaryProvider as storage } from '@/lib/storage/cloudinaryProvider';
-```
-
-Because the interface is uniform, no UI component needs to change.
+**Limitation:** Every thumbnail hits a serverless function — unacceptable at 10k assets in production.
 
 ---
 
-## Future Providers Planned
+## R2StorageProvider (to implement)
 
-| Provider | Version | Notes |
-|---|---|---|
-| Cloudinary | v0.4 | Image transformations, CDN delivery |
-| AWS S3 (or compatible) | v0.4 | Raw file storage, pre-signed download URLs |
-| Supabase Storage | v0.4 | Combined with Supabase Auth and DB migration |
+**File:** `src/lib/storage/r2StorageProvider.ts` (planned)
 
-When adding a cloud provider, the import script (`scripts/import-media.ts`) will also need to be updated to upload files to the cloud and store the cloud asset ID / public ID in the database instead of (or alongside) `originalPath`.
+| Method | Returns (example) |
+|---|---|
+| `getThumbnailUrl` | `${R2_PUBLIC_BASE_URL}/thumbnails/${id}.webp` |
+| `getPosterUrl` | `${R2_PUBLIC_BASE_URL}/posters/${id}.jpg` |
+| `getPreviewUrl` | `${R2_PUBLIC_BASE_URL}/originals/...` or signed URL |
+| `getDownloadUrl` | Same object with `Content-Disposition` via signed URL or proxy |
+
+### Environment variables
+
+```
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=wedding-media
+R2_PUBLIC_BASE_URL=https://media.yourdomain.com
+```
+
+### Implementation notes
+
+- Use AWS SDK v3 `S3Client` with R2 endpoint: `https://<account_id>.r2.cloudflarestorage.com`
+- Import script uploads after sharp/ffmpeg processing
+- DB stores **keys or public CDN paths**, not `C:\...` absolute paths
+- **Videos:** `<video src={cdnUrl}>` with range requests from R2/CDN — not full file through `/api/media/.../preview` on Vercel
+
+### Wiring
+
+```ts
+// src/lib/storage/index.ts (planned)
+import { r2StorageProvider as storage } from './r2StorageProvider';
+export { storage };
+```
+
+API routes and import script import `storage` for URL construction.
+
+---
+
+## Schema evolution for cloud
+
+Consider adding (during C2/C3):
+
+| Field | Purpose |
+|-------|---------|
+| `storageKey` | R2 object key |
+| `thumbnailKey` | R2 thumb key |
+| `cdnThumbnailUrl` | Denormalized CDN URL (optional) |
+
+Keep `originalPath` server-only during transition, then remove or repurpose as `storageKey`.
+
+---
+
+## Provider comparison
+
+| Provider | Use for this project |
+|----------|----------------------|
+| **Cloudflare R2** | **Yes** — primary |
+| AWS S3 + CloudFront | Optional alternative |
+| Supabase Storage | Optional; Postgres already on Supabase — not required |
+| Cloudinary | Skip for default (cost at video scale) |
+| Local disk / API routes | Dev only until R2 ships |
+
+---
+
+## Import script changes (C3)
+
+1. Walk `MEDIA_ROOT` (local staging folder — owner still organizes folders there).
+2. Generate thumbnail/poster locally with sharp/ffmpeg.
+3. **Upload** original + thumb + poster to R2.
+4. Upsert Postgres row with keys and CDN URLs.
+5. Do not rely on `public/generated/` in production.
+
+See `docs/MEDIA-IMPORT.md`.

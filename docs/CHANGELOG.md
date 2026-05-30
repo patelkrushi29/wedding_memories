@@ -4,6 +4,36 @@ Chronological record of every session's work, decisions made, and code changes. 
 
 ---
 
+## Session 2 (continued) — 2026-05-30 — Merge .claude structure + align rules
+
+### What was done
+
+- Merged remote `.claude/` (hooks, skills, agents, commands, rules), `mcp.json`, `CLAUDE.local.md` gitignore
+- Aligned `.claude/rules/` and SessionStart with cloud-first docs (`DEPLOY.md`, Postgres, R2)
+- Added `CLAUDE.local.md.example`, `.claude/` index in `CLAUDE.md`
+- Pushed unified branch `claude/serene-darwin-wegA5`
+
+---
+
+## Session 2 — 2026-05-30 — Cloud-first production documentation
+
+### What was done
+
+- Added **`docs/DEPLOY.md`** — full go-live guide (Vercel, Postgres, R2, accounts, env vars, C1–C6 checklist)
+- Reoriented plan/roadmap/tasks for **Postgres + R2 from day one** (no SQLite production path)
+- Owner requirements captured: ~10k photos, long videos, family link, custom domain, no guest uploads in phase 1
+- Fixed stale docs: `proxy.ts`, `next/font`, `scripts/db.ts`, Windows `pathToFileURL` note in DATABASE
+- New decisions D15–D18 in `DECISIONS.md`
+- Updated `CLAUDE.md`, `README.md`, `.env.example`, `AUTH`, `STORAGE`, `ARCHITECTURE`, `DATABASE`, `MEDIA-IMPORT`, `WORKFLOWS`, `CONVENTIONS`
+
+### Not done (code — next sessions)
+
+- C1–C6 implementation (schema still SQLite in repo)
+- Family view route
+- R2 provider
+
+---
+
 ## Session 1 — 2026-05-30 — Initial Build + Docs + Bug Fixes
 
 ### What was done

@@ -1,13 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 import path from 'path';
+import { pathToFileURL } from 'url';
 
 function resolveDbUrl(raw: string): string {
-  // Convert "file:./dev.db" or "file:dev.db" to absolute "file:///abs/path/dev.db"
   if (raw.startsWith('file:///')) return raw;
   const filePart = raw.replace(/^file:\.?\//, '');
   const absolutePath = path.resolve(process.cwd(), filePart);
-  return `file://${absolutePath}`;
+  return pathToFileURL(absolutePath).href;
 }
 
 function createPrismaClient() {
