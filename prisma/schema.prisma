@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Album {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  relativePath String?
+  coverAssetId String?
+  sortOrder    Int      @default(0)
+  isHidden     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  assets       Asset[]
+
+  @@index([slug])
+  @@index([isHidden])
+}
+
+model Asset {
+  id             String    @id @default(cuid())
+  type           String    // "PHOTO" or "VIDEO"
+  albumId        String?
+  album          Album?    @relation(fields: [albumId], references: [id])
+  filename       String
+  originalPath   String
+  relativePath   String    @unique
+  extension      String
+  mimeType       String?
+  fileSizeBytes  Int
+  width          Int?
+  height         Int?
+  durationSeconds Float?
+  thumbnailPath  String?
+  posterPath     String?
+  takenAt        DateTime?
+  modifiedAt     DateTime
+  isHidden       Boolean   @default(false)
+  isHighlight    Boolean   @default(false)
+  isAvailable    Boolean   @default(true)
+  checksum       String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([type])
+  @@index([albumId])
+  @@index([filename])
+  @@index([takenAt])
+  @@index([modifiedAt])
+  @@index([isHidden])
+  @@index([isAvailable])
+}
+
+model SiteSetting {
+  id                String    @id @default(cuid())
+  appName           String    @default("Wedding Memories")
+  coupleNames       String?
+  weddingDate       DateTime?
+  guestPasswordHash String?
+  requirePassword   Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model FuturePerson {
+  id           String   @id @default(cuid())
+  displayName  String?
+  coverAssetId String?
+  isVisible    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model FutureFaceMatch {
+  id              String   @id @default(cuid())
+  personId        String
+  assetId         String
+  boundingBoxJson String?
+  confidence      Float?
+  provider        String?
+  externalFaceId  String?
+  isApproved      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+}
