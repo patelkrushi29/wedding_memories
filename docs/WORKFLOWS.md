@@ -99,7 +99,7 @@ Follow these recipes exactly when performing common tasks. They encode project-s
 ## Modifying auth or middleware
 
 1. Read `docs/AUTH.md` first
-2. The middleware is at `src/middleware.ts`
+2. The middleware is at `src/proxy.ts`
 3. The cookie name is `wg-auth`, value is `authenticated`
 4. Paths excluded from auth:
    - `/api/*` — all API routes

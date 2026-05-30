@@ -86,7 +86,7 @@ public/generated/
 
 ```
 Browser request
-  └─► src/middleware.ts
+  └─► src/proxy.ts
         checks wg-auth cookie
         ├─ missing/wrong → redirect /auth
         └─ valid → NextResponse.next()

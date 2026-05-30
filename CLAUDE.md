@@ -102,7 +102,7 @@ These are documented so you don't waste time discovering them. Fix them as part 
 
 When editing an area, limit changes to these files:
 
-**Auth:** `src/middleware.ts`, `src/app/api/auth/guest-password/route.ts`, `src/app/auth/page.tsx`
+**Auth:** `src/proxy.ts`, `src/app/api/auth/guest-password/route.ts`, `src/app/auth/page.tsx`
 
 **Media serving:** `src/app/api/media/[id]/download/route.ts`, `preview/route.ts`, `thumbnail/route.ts`
 
@@ -125,7 +125,7 @@ When editing an area, limit changes to these files:
 | Prisma client singleton | `src/lib/db.ts` |
 | Prisma schema (5 models) | `prisma/schema.prisma` |
 | Prisma 7 datasource config | `prisma.config.ts` |
-| Middleware (auth check) | `src/middleware.ts` |
+| Middleware (auth check) | `src/proxy.ts` |
 | Auth API | `src/app/api/auth/guest-password/route.ts` |
 | Assets API (paginated) | `src/app/api/assets/route.ts` |
 | Albums API | `src/app/api/albums/route.ts` |

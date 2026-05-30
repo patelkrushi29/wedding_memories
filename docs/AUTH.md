@@ -3,7 +3,7 @@
 ## How the Password Gate Works End to End
 
 1. Guest visits any page (e.g. `/highlights`).
-2. `src/middleware.ts` runs — checks for cookie `wg-auth=authenticated`.
+2. `src/proxy.ts` runs — checks for cookie `wg-auth=authenticated`.
 3. Cookie missing or wrong → redirect to `/auth`.
 4. Guest fills in the password form at `/auth` and submits.
 5. `POST /api/auth/guest-password` is called with `{ password: "..." }`.
@@ -27,7 +27,7 @@
 
 ## Middleware Logic
 
-`src/middleware.ts` applies to all routes except:
+`src/proxy.ts` applies to all routes except:
 
 | Excluded path | Reason |
 |---|---|
