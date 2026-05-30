@@ -42,6 +42,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# personal claude overrides
+CLAUDE.local.md
+
 # wedding gallery
 /media/
 public/generated/
