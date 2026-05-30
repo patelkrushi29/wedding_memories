@@ -1,9 +1,6 @@
-@import "tailwindcss";
-
-@theme {
-  --font-sans: var(--font-sans), system-ui, sans-serif;
-  --font-serif: var(--font-serif), Georgia, serif;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #faf9f6;
