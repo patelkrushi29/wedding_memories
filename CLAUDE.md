@@ -121,7 +121,7 @@ When editing an area, limit changes to these files:
 
 **Media serving:** `src/app/api/media/[id]/download/route.ts`, `preview/route.ts`, `thumbnail/route.ts` (shrink when R2 CDN URLs used in UI)
 
-**Import pipeline:** `scripts/import-media.ts`, `scripts/generate-thumbnails.ts`, `scripts/reset-local.ts`, `scripts/db.ts`
+**Import pipeline:** `scripts/sync-r2-media.ts` (R2 → DB, primary), `scripts/import-media.ts` (optional local staging), `scripts/generate-thumbnails.ts`, `scripts/reset-local.ts`, `scripts/db.ts`
 
 **Gallery pages:** `src/app/highlights/page.tsx`, `photos/page.tsx`, `videos/page.tsx`, `albums/page.tsx`, `albums/[slug]/page.tsx`
 

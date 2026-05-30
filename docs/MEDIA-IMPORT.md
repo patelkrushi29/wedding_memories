@@ -1,8 +1,13 @@
 # Media Import
 
-**Production (target):** Owner still organizes files locally under `MEDIA_ROOT`, but import **uploads to Cloudflare R2** and writes **PostgreSQL** metadata. See `docs/DEPLOY.md` C3.
+**Production:** Files live in **Cloudflare R2** (`media/` prefix); metadata lives in **Supabase Postgres**.
 
-**Current code:** Local scan → SQLite + `public/generated/thumbnails/` (dev only).
+Two workflows:
+
+| Workflow | Command | When to use |
+|----------|---------|-------------|
+| **R2-only (recommended if files are already in the bucket)** | `npm run sync:r2` | Photos/videos already under `media/` in R2 — no laptop folder |
+| **Local staging → R2** | `npm run import:media` | You still copy files into `MEDIA_ROOT` first, then upload + index |
 
 **Phase 1:** Owner upload only. Guest uploads are not supported.
 
@@ -33,18 +38,41 @@ The `media/` directory is gitignored — never commit media files.
 
 ---
 
-## Running the Import
+## R2-only sync (no local `media/wedding`)
+
+Upload your folder structure directly to the bucket, e.g.:
+
+```
+family-photos/
+  media/
+    Highlights/photo1.jpg
+    Ceremony/photo2.jpg
+    DSC_001.jpg          → "All Media" album
+```
+
+Then from your machine (with `.env` pointing at Supabase + R2):
+
+```bash
+npx prisma migrate deploy   # once
+npm run sync:r2
+```
+
+`scripts/sync-r2-media.ts` lists every object under the `media/` prefix, creates albums/assets in Postgres, and generates missing WebP thumbnails in `thumbnails/` (downloads each photo from R2 once). Videos need a poster at `thumbnails/<assetId>_poster.jpg` in R2, or you add posters separately.
+
+Fast index without thumbs: `npm run sync:r2 -- --skip-thumbnails`
+
+---
+
+## Local folder import (optional)
 
 ```bash
 npm run import:media
 ```
 
-This runs `scripts/import-media.ts` via `tsx`.
-
 **Environment variables:**
-- `MEDIA_ROOT` — staging folder (default: `./media/wedding`)
-- `DATABASE_URL` — **Postgres** URI (Supabase/Neon) in production; legacy default `file:./dev.db` until C1
-- `R2_*` — see `docs/DEPLOY.md` when cloud import ships
+- `MEDIA_ROOT` — only for this command (default: `./media/wedding`)
+- `DATABASE_URL` — Postgres URI (Supabase)
+- `R2_*` — required for cloud upload during import
 
 ---
 

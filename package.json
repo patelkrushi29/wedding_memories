@@ -11,6 +11,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "import:media": "tsx scripts/import-media.ts",
+    "sync:r2": "tsx scripts/sync-r2-media.ts",
     "generate:thumbnails": "tsx scripts/generate-thumbnails.ts",
     "reset:local": "tsx scripts/reset-local.ts"
   },

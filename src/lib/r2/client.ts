@@ -1,4 +1,10 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 
 export function isR2Configured(): boolean {
   return Boolean(
@@ -58,4 +64,68 @@ export async function uploadToR2(
       ContentType: contentType,
     })
   );
+}
+
+export type R2ListedObject = {
+  key: string;
+  size: number;
+  lastModified: Date;
+};
+
+/** List object keys under a prefix (paginated). Skips trailing-slash folder placeholders. */
+export async function listR2Objects(prefix: string): Promise<R2ListedObject[]> {
+  const normalizedPrefix = prefix.replace(/^\//, '');
+  const items: R2ListedObject[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const res = await getR2Client().send(
+      new ListObjectsV2Command({
+        Bucket: process.env.R2_BUCKET_NAME!,
+        Prefix: normalizedPrefix,
+        ContinuationToken: continuationToken,
+      })
+    );
+
+    for (const obj of res.Contents ?? []) {
+      if (!obj.Key || obj.Key.endsWith('/')) continue;
+      items.push({
+        key: obj.Key,
+        size: obj.Size ?? 0,
+        lastModified: obj.LastModified ?? new Date(),
+      });
+    }
+
+    continuationToken = res.NextContinuationToken;
+  } while (continuationToken);
+
+  return items;
+}
+
+export async function r2ObjectExists(key: string): Promise<boolean> {
+  try {
+    await getR2Client().send(
+      new HeadObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME!,
+        Key: key.replace(/^\//, ''),
+      })
+    );
+    return true;
+  } catch (err: unknown) {
+    const e = err as { name?: string; $metadata?: { httpStatusCode?: number } };
+    if (e.name === 'NotFound' || e.$metadata?.httpStatusCode === 404) return false;
+    throw err;
+  }
+}
+
+export async function downloadFromR2(key: string): Promise<Buffer> {
+  const res = await getR2Client().send(
+    new GetObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME!,
+      Key: key.replace(/^\//, ''),
+    })
+  );
+  const bytes = await res.Body?.transformToByteArray();
+  if (!bytes?.length) throw new Error(`Empty object: ${key}`);
+  return Buffer.from(bytes);
 }

@@ -161,16 +161,20 @@ function needsMediaSync(
 }
 
 async function main() {
-  const mediaRoot = path.resolve(MEDIA_ROOT);
-  if (!fs.existsSync(mediaRoot)) {
-    fs.mkdirSync(mediaRoot, { recursive: true });
-    console.log(`Created media directory: ${mediaRoot}`);
-  }
-
   if (useR2) {
     console.log('Storage: Cloudflare R2');
+    console.log(
+      'If files are already in the bucket under media/, use npm run sync:r2 instead of import:media.'
+    );
   } else {
     console.log('Storage: local disk (set R2_* env vars for cloud upload)');
+  }
+
+  const mediaRoot = path.resolve(MEDIA_ROOT);
+  if (!fs.existsSync(mediaRoot)) {
+    console.error(`MEDIA_ROOT does not exist: ${mediaRoot}`);
+    console.error('For R2-only workflow (files already in bucket): npm run sync:r2');
+    process.exit(1);
   }
 
   const allFiles = walkDir(mediaRoot);
@@ -179,7 +183,12 @@ async function main() {
     return PHOTO_EXTS.has(ext) || VIDEO_EXTS.has(ext);
   });
 
-  console.log(`Found ${mediaFiles.length} media files`);
+  console.log(`Found ${mediaFiles.length} media files in ${mediaRoot}`);
+  if (mediaFiles.length === 0) {
+    console.error('No photos/videos under MEDIA_ROOT.');
+    console.error('If your files are already in R2 (family-photos/media/...): npm run sync:r2');
+    process.exit(1);
+  }
 
   let imported = 0;
   let errors = 0;

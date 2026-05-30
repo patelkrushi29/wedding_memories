@@ -90,7 +90,7 @@ Read **`docs/DEPLOY.md`** for full detail. Summary:
 - [ ] Supabase or Neon project
 - [ ] Vercel linked to GitHub
 - [ ] Custom domain DNS
-- [ ] Organize `media/wedding/` folders on disk for first import
+- [ ] Run `npm run sync:r2` after files are in R2 `media/` (no local `media/wedding` required)
 
 ---
 
