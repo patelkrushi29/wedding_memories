@@ -4,11 +4,11 @@ Chronological record of every session's work, decisions made, and code changes. 
 
 ---
 
-## Session 1 — 2026-05-30 — Initial Build
+## Session 1 — 2026-05-30 — Initial Build + Docs + Bug Fixes
 
 ### What was done
 
-Built the entire Wedding Memories Gallery local MVP from scratch in an empty repo.
+Built the entire Wedding Memories Gallery local MVP from scratch in an empty repo. Created comprehensive documentation system (14 files) for Claude Code session handoff. Found and fixed 3 bugs during smoke testing. Captured screenshots of all pages for owner review.
 
 ### Commits (chronological)
 
@@ -72,6 +72,16 @@ Built the entire Wedding Memories Gallery local MVP from scratch in an empty rep
 | photoCount/videoCount always 0 in albums API | Documented, not yet fixed |
 | Albums page HTTP self-fetch to localhost:3000 | Documented, not yet fixed |
 
+### Additional commits (bug fixes + docs)
+
+7. `ab1f39f` — **Fix 3 bugs, add session handoff docs**
+   - Created `scripts/db.ts`: shared Prisma client with libsql adapter for all scripts
+   - Updated all 3 scripts to import from `./db` instead of creating raw `new PrismaClient()`
+   - Migrated fonts from CSS `@import` to `next/font` in `layout.tsx`
+   - Stripped `originalPath`, `thumbnailPath`, `posterPath` from API responses (security fix)
+   - Added `docs/CHANGELOG.md` (this file) and `docs/TASKS.md` (session handoff tracker)
+   - Updated `CLAUDE.md` with session handoff section
+
 ### Test results
 
 - Import: 8 test photos across 3 albums, all imported successfully
@@ -79,6 +89,8 @@ Built the entire Wedding Memories Gallery local MVP from scratch in an empty rep
 - Thumbnails generated (490 bytes webp vs 8728 bytes original)
 - Download endpoint streams original file correctly
 - Auth flow works (password → cookie → access)
+- 12 screenshots captured (desktop + mobile) — all pages render correctly
+- Owner confirmed Codespace is working
 
 ---
 
