@@ -2,66 +2,115 @@
 
 A self-hosted wedding photo/video gallery. Local-first MVP: Next.js + SQLite + Prisma, no cloud services.
 
-## Quick orientation
+**Current version:** 0.1 (local MVP — stabilization phase)
 
-| What you need | Read this |
+---
+
+## How to use this documentation
+
+This file is the entry point. Read it fully on every session. Then load ONLY the doc file relevant to your task.
+
+### For understanding and planning
+| Need | Read |
 |---|---|
-| Why something was built a certain way | `docs/DECISIONS.md` |
+| What to work on next | `docs/PLAN.md` → Stabilization Phase |
+| Why something was built this way | `docs/DECISIONS.md` |
 | Full directory map and data flow | `docs/ARCHITECTURE.md` |
+| What's planned long-term | `docs/ROADMAP.md` |
+
+### For implementation
+| Task | Read |
+|---|---|
+| Adding a page, component, or API route | `docs/WORKFLOWS.md` → the specific recipe |
+| Code patterns and naming rules | `docs/CONVENTIONS.md` |
 | DB schema, Prisma setup, migrations | `docs/DATABASE.md` |
 | Auth, cookies, middleware | `docs/AUTH.md` |
 | Import script, folders, thumbnails | `docs/MEDIA-IMPORT.md` |
 | API routes, params, responses | `docs/API.md` |
 | Pages and components, props, state | `docs/COMPONENTS.md` |
 | StorageProvider interface | `docs/STORAGE.md` |
-| What's planned for future versions | `docs/ROADMAP.md` |
 
-Read **only the file relevant to your task**. Do not load all docs at once.
+### For verification
+| Need | Read |
+|---|---|
+| How to test a change | `docs/TESTING.md` → relevant checklist |
+| Version milestone checklist | `docs/WORKFLOWS.md` → "Preparing for a version milestone" |
 
-## Rules that always apply
+---
+
+## Critical rules (always apply)
 
 ### Security
-- Never accept raw file paths from the client — only asset IDs. The server resolves paths from the DB.
-- Never expose `asset.originalPath` in API responses.
+- **Never accept raw file paths from the client** — only asset IDs. Server resolves paths from DB.
+- **Never expose `asset.originalPath`** in any API response.
 - Auth cookie: `wg-auth=authenticated`, set httpOnly by `POST /api/auth/guest-password`.
 
 ### Performance
-- Never load original images in grids — always use `/api/media/[id]/thumbnail`.
-- Never query all assets at once — always paginate with `skip`/`take`, default limit 60.
+- **Never load original images in grids** — always use `/api/media/[id]/thumbnail`.
+- **Never query all assets at once** — always paginate with `skip`/`take`, default limit 60.
+- **Always include `isHidden: false, isAvailable: true`** in guest-facing queries.
 - Videos use `preload="metadata"` only.
 
-### Data
+### Data integrity
 - `Asset.type` is a plain String (`"PHOTO"` or `"VIDEO"`), not a Prisma enum. SQLite has no native enums.
 - `media/` and `public/generated/` are gitignored. Never commit media or thumbnails.
-- The database file is `prisma/dev.db` (also gitignored).
+- Database file is `prisma/dev.db` (also gitignored).
+- Shared types live in `src/types/` — do NOT define local Asset interfaces in page files.
+- URL construction (`/api/media/[id]/thumbnail`, etc.) happens server-side in API routes, never on the client.
 
-## Prisma 7 — read this before touching the DB
+---
 
-This project uses Prisma 7, which works differently from Prisma 5/6. **Do not follow standard Prisma tutorials without checking here first.**
+## Prisma 7 — read before touching anything DB-related
 
-- The `datasource` block in `schema.prisma` has **no `url` field**. The URL lives in `prisma.config.ts`.
-- The app uses the `@prisma/adapter-libsql` driver adapter for SQLite. The singleton in `src/lib/db.ts` creates `PrismaLibSql({ url })` and passes it as an adapter.
-- `resolveDbUrl()` in `db.ts` converts relative `file:./dev.db` to absolute `file:///abs/path/dev.db` because libsql rejects relative paths.
-- The `as any` cast on `new PrismaClient({ adapter })` suppresses a type mismatch — this is intentional, do not remove it.
-- **The import scripts** (`scripts/import-media.ts`, etc.) use `new PrismaClient()` directly without the libsql adapter. Prisma 7 reads the URL from `prisma.config.ts` at runtime so this works, but the two PrismaClient creation paths are inconsistent.
+This project uses Prisma 7 with the libsql adapter. **Standard Prisma tutorials will mislead you.**
 
-If you need to change how the DB connects, update BOTH `src/lib/db.ts` and the scripts.
+| What's different | Detail |
+|---|---|
+| No `url` in schema.prisma | URL lives in `prisma.config.ts` via `defineConfig()` |
+| Driver adapter required | `@prisma/adapter-libsql` with `PrismaLibSql({ url })` |
+| Relative paths rejected | `src/lib/db.ts` has `resolveDbUrl()` to convert `file:./dev.db` → `file:///abs/path/dev.db` |
+| Type cast needed | `new PrismaClient({ adapter } as any)` — intentional, do not remove |
+| Scripts use raw PrismaClient | `scripts/*.ts` use `new PrismaClient()` without adapter — works because Prisma 7 reads URL from `prisma.config.ts` |
 
-## Known tech debt and inconsistencies
+If you change DB connection logic, update BOTH `src/lib/db.ts` AND the scripts.
 
-These are documented here so you don't waste time "discovering" them or trying to fix them without context.
+---
 
-1. **Asset type is duplicated.** The `Asset` interface is copy-pasted in `highlights/page.tsx`, `photos/page.tsx`, `videos/page.tsx`, `selected/page.tsx`, `albums/[slug]/page.tsx`. There is no shared types file yet. If you add a field, you must update all of them (or extract a shared type to `src/types/asset.ts`).
+## Known tech debt
 
-2. **StorageProvider is dead code.** `src/lib/storage/localStorageProvider.ts` exists and implements the `StorageProvider` interface, but nothing imports it. All API routes hardcode URL construction inline: `/api/media/${id}/thumbnail`. The abstraction is ready for when we add cloud providers, but isn't wired up yet.
+These are documented so you don't waste time discovering them. Fix them as part of the Stabilization Phase (see `docs/PLAN.md`).
 
-3. **Albums page does HTTP self-fetch.** `src/app/albums/page.tsx` is a server component that fetches from its own API via `fetch('http://localhost:3000/api/albums')`. This should use Prisma directly but works for now.
+| # | Issue | Where | How to fix |
+|---|---|---|---|
+| 1 | Asset interface duplicated in 8 files | All page files + MediaCard, VideoCard, MediaViewerModal | Extract to `src/types/asset.ts` |
+| 2 | StorageProvider is dead code | `src/lib/storage/localStorageProvider.ts` never imported | Wire up or centralize URL construction |
+| 3 | Albums page does HTTP self-fetch | `src/app/albums/page.tsx` fetches `localhost:3000/api/albums` | Replace with direct Prisma query |
+| 4 | photoCount/videoCount always 0 | `GET /api/albums` returns hardcoded 0 | Fix the query to count by type |
+| 5 | Admin page makes 4 API calls for counts | `src/app/admin/page.tsx` | Create `GET /api/admin/stats` |
+| 6 | No error boundaries | Entire app | Add error.tsx files per route |
+| 7 | Google Fonts via CSS @import | `src/app/globals.css` | Migrate to `next/font` |
 
-4. **photoCount/videoCount are always 0.** `GET /api/albums` returns `photoCount: 0, videoCount: 0` — only `totalCount` is populated. Documented in `docs/API.md`.
+---
 
-5. **Admin stats makes 4 API calls.** `src/app/admin/page.tsx` fetches `/api/assets?limit=1` four times with different filters to get counts. Should be a single admin stats API endpoint.
+## Module boundaries
 
-6. **No shared error boundary.** No React error boundaries exist yet.
+When editing an area, limit changes to these files:
+
+**Auth:** `src/middleware.ts`, `src/app/api/auth/guest-password/route.ts`, `src/app/auth/page.tsx`
+
+**Media serving:** `src/app/api/media/[id]/download/route.ts`, `preview/route.ts`, `thumbnail/route.ts`
+
+**Import pipeline:** `scripts/import-media.ts`, `scripts/generate-thumbnails.ts`, `scripts/reset-local.ts`
+
+**Gallery pages:** `src/app/highlights/page.tsx`, `photos/page.tsx`, `videos/page.tsx`, `albums/page.tsx`, `albums/[slug]/page.tsx`
+
+**Selected/Favorites:** `src/components/FavoriteButton.tsx`, `src/app/selected/page.tsx` — localStorage key: `wedding-gallery-selected-assets`
+
+**Design system:** `src/app/globals.css` (CSS vars, fonts, masonry), component-level Tailwind classes
+
+**Navigation:** `src/components/TopNav.tsx` — nav links in `navLinks` array
+
+---
 
 ## Key file locations
 
@@ -71,43 +120,42 @@ These are documented here so you don't waste time "discovering" them or trying t
 | Prisma schema (5 models) | `prisma/schema.prisma` |
 | Prisma 7 datasource config | `prisma.config.ts` |
 | Middleware (auth check) | `src/middleware.ts` |
-| Auth API route | `src/app/api/auth/guest-password/route.ts` |
-| Assets API (paginated, filterable) | `src/app/api/assets/route.ts` |
-| Media file serving | `src/app/api/media/[id]/{download,preview,thumbnail}/route.ts` |
+| Auth API | `src/app/api/auth/guest-password/route.ts` |
+| Assets API (paginated) | `src/app/api/assets/route.ts` |
+| Albums API | `src/app/api/albums/route.ts` |
+| Media file endpoints | `src/app/api/media/[id]/{download,preview,thumbnail}/route.ts` |
+| Admin reindex | `src/app/api/admin/reindex/route.ts` |
 | StorageProvider interface | `src/lib/storage/types.ts` |
-| Local storage provider (unused) | `src/lib/storage/localStorageProvider.ts` |
 | Import script | `scripts/import-media.ts` |
 | Thumbnail regenerator | `scripts/generate-thumbnails.ts` |
 | DB + thumbnails reset | `scripts/reset-local.ts` |
-| Favorites logic (localStorage) | `src/components/FavoriteButton.tsx` |
+| Favorites (localStorage) | `src/components/FavoriteButton.tsx` |
 | Media lightbox | `src/components/MediaViewerModal.tsx` |
-| UI primitives (hand-built Radix) | `src/components/ui/*.tsx` |
-| Design tokens (CSS vars, fonts) | `src/app/globals.css` |
+| UI primitives (Radix) | `src/components/ui/*.tsx` |
+| Design tokens | `src/app/globals.css` |
+| Shared types | `src/types/` (to be created in stabilization) |
+| Utility functions | `src/lib/utils.ts` |
 
-## Module boundaries
+---
 
-When editing these areas, limit your changes to the listed files:
-
-**Auth system:** `src/middleware.ts`, `src/app/api/auth/guest-password/route.ts`, `src/app/auth/page.tsx`
-
-**Media serving:** `src/app/api/media/[id]/download/route.ts`, `preview/route.ts`, `thumbnail/route.ts`
-
-**Import pipeline:** `scripts/import-media.ts`, `scripts/generate-thumbnails.ts`, `scripts/reset-local.ts`
-
-**Gallery pages:** `src/app/highlights/page.tsx`, `src/app/photos/page.tsx`, `src/app/videos/page.tsx`, `src/app/albums/page.tsx`, `src/app/albums/[slug]/page.tsx`
-
-**Selected/Favorites:** `src/components/FavoriteButton.tsx`, `src/app/selected/page.tsx` — localStorage key is `wedding-gallery-selected-assets`
-
-**Design:** `src/app/globals.css` (CSS vars, fonts, masonry grid), `tailwind.config.ts` if it exists
-
-**Navigation:** `src/components/TopNav.tsx` — nav links are hardcoded in `navLinks` array
-
-## What NOT to add without discussion
+## What NOT to add without explicit instruction
 
 - Cloud storage (Cloudinary, S3, Supabase Storage)
 - Supabase backend or authentication
-- Vercel deployment config
-- Face recognition logic (schema placeholder exists, no feature)
+- Vercel deployment configuration
+- Face recognition logic (schema placeholder exists, feature is v0.5)
 - Guest uploads
-- Landing page
-- SaaS/multi-tenant patterns
+- Landing page (first experience is the gallery)
+- SaaS / multi-tenant patterns
+- Email sharing, watermarking, access expiry
+- Third-party analytics
+
+---
+
+## After every task
+
+1. Run `npm run dev` and verify the change works
+2. Run the relevant checklist from `docs/TESTING.md`
+3. If you made a non-obvious technical decision, add it to `docs/DECISIONS.md`
+4. Update the relevant doc file if behavior changed
+5. Update `docs/PLAN.md` if you completed a planned task
