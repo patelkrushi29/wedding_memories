@@ -4,49 +4,41 @@ globs: prisma/**
 
 # Rules for Prisma / Database
 
-You are editing a Prisma schema or migration. Read these before touching anything.
+**Full docs:** `docs/DATABASE.md` · **Go-live:** `docs/DEPLOY.md` (C1)
 
-## Prisma 7 — critical differences from tutorials
+## Target: PostgreSQL (Supabase or Neon)
 
-| Rule | Detail |
-|---|---|
-| No `url` in schema.prisma | URL lives in `prisma.config.ts` via `defineConfig()` — do NOT add it to schema |
-| Adapter required | `@prisma/adapter-libsql` — required for all PrismaClient instances |
-| Absolute URL required | `resolveDbUrl()` in `src/lib/db.ts` converts `file:./dev.db` → `file:///abs/path` |
-| Type cast | `new PrismaClient({ adapter } as any)` — intentional, do not remove |
+- Production uses `DATABASE_URL` (Postgres). **No SQLite in production.**
+- New work should implement C1 (Postgres), not extend SQLite-only paths.
+- **Not used:** MongoDB.
 
-## Asset.type is a String, not an enum
-SQLite has no native enums. `Asset.type` is declared as `String` in schema.prisma.
-Always use uppercase string literals: `"PHOTO"` or `"VIDEO"`.
-Never add a Prisma `enum` for this — it will break SQLite.
+## Current code (legacy dev until C1)
+
+- `provider = "sqlite"` + `@prisma/adapter-libsql`
+- URL in `prisma.config.ts`, not `schema.prisma`
+- `src/lib/db.ts` and `scripts/db.ts` use adapter + `pathToFileURL()` on Windows
+- `new PrismaClient({ adapter } as any)` — intentional for SQLite path
+
+## Asset.type is String (not enum)
+
+Use `"PHOTO"` / `"VIDEO"`. Optional Prisma enum only after Postgres migration.
 
 ## Migrations
-```bash
-npx prisma migrate dev --name describe_change
-```
-After any schema change: regenerate the client:
-```bash
-npx prisma generate
-```
 
-## prisma.config.ts
-The datasource URL lives here:
-```ts
-export default defineConfig({
-  schema: path.join('prisma', 'schema.prisma'),
-  datasource: { url: 'file:./dev.db' },
-});
+```bash
+npx prisma generate   # after every schema change
+npx prisma migrate dev --name describe_change   # dev
+npx prisma migrate deploy   # production Postgres
 ```
-Do NOT move the URL into schema.prisma.
-
-## Schema models (summary)
-- `Album` — slug, name, coverAssetId, isHidden, isAvailable
-- `Asset` — albumId, type (String), originalPath, thumbnailPath, posterPath, isHidden, isAvailable, metadata
-- `SiteSetting` — key/value store for runtime config
-- `FuturePerson` / `FutureFaceMatch` — placeholders for v0.5 face recognition, do not touch
 
 ## Never expose originalPath
-`Asset.originalPath` must never appear in API responses. Strip it in every route:
+
+Strip in every API response:
+
 ```ts
 const { originalPath: _, thumbnailPath: _t, posterPath: _p, ...safe } = asset;
 ```
+
+## Models (summary)
+
+Album, Asset, SiteSetting, FuturePerson, FutureFaceMatch — see `docs/DATABASE.md`.

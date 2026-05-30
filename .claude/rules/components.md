@@ -4,6 +4,8 @@ globs: src/components/**/*.tsx
 
 # Rules for Components
 
+**Full docs:** `docs/COMPONENTS.md` · **Types:** `src/types/asset.ts` when S2 lands
+
 You are editing a React component. These rules apply to all files in `src/components/`.
 
 ## Client vs Server

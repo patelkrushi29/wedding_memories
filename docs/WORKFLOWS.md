@@ -10,7 +10,7 @@ Follow these recipes exactly when performing common tasks. They encode project-s
 2. Decide: server component (data fetched via Prisma) or client component (`'use client'` with fetch calls)
    - Use **server component** if the page just displays data with no interactivity (like albums list)
    - Use **client component** if the page needs state, pagination, search, filters, or localStorage
-3. Import shared types from `src/types/asset.ts` (do NOT define a new Asset interface)
+3. Import shared types from `src/types/asset.ts` when it exists (S2 — do NOT define a new Asset interface)
 4. Include `<TopNav />` at the top of the page
 5. Wrap content in the standard layout:
    ```tsx
@@ -86,7 +86,7 @@ Follow these recipes exactly when performing common tasks. They encode project-s
 
 1. Read `docs/MEDIA-IMPORT.md` first
 2. Edit `scripts/import-media.ts`
-3. The script uses `new PrismaClient()` directly (not the app's singleton). This is correct for standalone scripts.
+3. The script imports `prisma` from `./db` (see `scripts/db.ts`). Target: Postgres + R2 upload per `docs/DEPLOY.md` C3.
 4. Test with a small dataset first (10-20 files)
 5. Run: `npm run import:media`
 6. Check the summary output
@@ -96,18 +96,19 @@ Follow these recipes exactly when performing common tasks. They encode project-s
 
 ---
 
-## Modifying auth or middleware
+## Modifying auth or proxy
 
-1. Read `docs/AUTH.md` first
-2. The middleware is at `src/proxy.ts`
-3. The cookie name is `wg-auth`, value is `authenticated`
+1. Read `docs/AUTH.md` and `docs/DEPLOY.md` (C5) first
+2. Auth proxy is at `src/proxy.ts`
+3. The cookie name is `wg-auth`, value is `authenticated` (or `family` when family link ships)
 4. Paths excluded from auth:
    - `/api/*` — all API routes
    - `/_next/*` — Next.js internals
-   - `/generated/*` — thumbnail files
+   - `/generated/*` — legacy local thumbnails
    - `/auth` — the login page itself
+   - `/view/*` — family link (planned)
    - `/favicon.ico`
-5. If you add a new public route (accessible without auth), add it to the exclusion list in middleware
+5. If you add a new public route (accessible without auth), add it to the exclusion list in `src/proxy.ts`
 6. After changes, test: (1) access a protected page while logged out → should redirect to /auth, (2) log in → should redirect to /highlights, (3) API routes still work without auth
 7. Update `docs/AUTH.md`
 
@@ -163,13 +164,13 @@ Before reporting any task as complete, verify:
 7. Favorite a photo, check `/selected`, unfavorite
 
 ### After schema changes
-- Run `npx prisma migrate dev`
+- Postgres: `npx prisma migrate dev` (or `migrate deploy` on cloud)
+- `npx prisma generate`
 - Run `npm run import:media` to verify import still works
-- Check the app displays the data correctly
 
 ### After import script changes
-- Delete the DB: `rm prisma/dev.db`
-- Run migration: `npx prisma migrate dev --name init`
+- Test against **Postgres** `DATABASE_URL` when C1 is done (preferred)
+- Legacy SQLite reset: delete `prisma/dev.db`, migrate, import
 - Run import: `npm run import:media`
 - Verify output summary makes sense
 - Check app for correct data

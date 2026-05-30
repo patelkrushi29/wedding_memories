@@ -1,0 +1,7 @@
+# CLAUDE.local.md — personal overrides (copy to CLAUDE.local.md, gitignored)
+
+# Example: point local dev at cloud Postgres (preferred over SQLite)
+# DATABASE_URL=postgresql://...
+
+# Machine-specific paths
+# MEDIA_ROOT=D:/wedding-photos

@@ -1,5 +1,13 @@
 # Media Import
 
+**Production (target):** Owner still organizes files locally under `MEDIA_ROOT`, but import **uploads to Cloudflare R2** and writes **PostgreSQL** metadata. See `docs/DEPLOY.md` C3.
+
+**Current code:** Local scan → SQLite + `public/generated/thumbnails/` (dev only).
+
+**Phase 1:** Owner upload only. Guest uploads are not supported.
+
+---
+
 ## Folder Structure
 
 Place media files under `media/wedding/` in the project root:
@@ -34,8 +42,9 @@ npm run import:media
 This runs `scripts/import-media.ts` via `tsx`.
 
 **Environment variables:**
-- `MEDIA_ROOT` — override the media folder path (default: `./media/wedding`)
-- `DATABASE_URL` — override the database path (default: `file:./dev.db`)
+- `MEDIA_ROOT` — staging folder (default: `./media/wedding`)
+- `DATABASE_URL` — **Postgres** URI (Supabase/Neon) in production; legacy default `file:./dev.db` until C1
+- `R2_*` — see `docs/DEPLOY.md` when cloud import ships
 
 ---
 

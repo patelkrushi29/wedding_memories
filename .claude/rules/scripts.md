@@ -4,44 +4,40 @@ globs: scripts/**/*.ts
 
 # Rules for Scripts (import-media, generate-thumbnails, reset-local)
 
-You are editing a CLI script. These run as standalone Node processes, not inside Next.js.
+**Full docs:** `docs/MEDIA-IMPORT.md` · **Cloud import:** `docs/DEPLOY.md` (C3)
 
-## Always import Prisma from scripts/db.ts
+CLI scripts run outside Next.js.
+
+## Prisma client
+
 ```ts
 import { prisma } from './db';
 ```
-NEVER use `new PrismaClient()` directly in scripts — it will crash under Prisma 7 without the libsql adapter.
 
-## scripts/db.ts is the shared Prisma client for all scripts
-It handles the libsql adapter and absolute URL resolution. Do not duplicate this logic.
+Use `scripts/db.ts` — never raw `new PrismaClient()` in scripts.
+
+## Target (C3): upload to Cloudflare R2
+
+- Owner stages files under `MEDIA_ROOT` (default `media/wedding/`)
+- Import generates thumbs (sharp/ffmpeg) → **upload to R2** → write **Postgres** metadata
+- Do not rely on `public/generated/` in production
 
 ## Error handling
-Catch errors per-file inside loops. Never let one bad file stop the entire import.
-```ts
-try {
-  // process file
-} catch (err) {
-  console.error(`Error processing ${filePath}:`, err);
-  errors++;
-}
-```
 
-## Always disconnect at the end
+Per-file try/catch; one bad file must not stop the run.
+
+## Always disconnect
+
 ```ts
 await prisma.$disconnect();
 ```
 
-## Thumbnail path format
-Store as relative URL, not filesystem path:
-```ts
-thumbnailPath: `/generated/thumbnails/${assetId}.webp`
-```
+## Asset type
 
-## Album slug generation
-```ts
-import slugify from 'slugify';
-const slug = slugify(folderName, { lower: true, strict: true });
-```
+`'PHOTO'` or `'VIDEO'` — uppercase only.
 
-## Asset type values
-Always uppercase: `'PHOTO'` or `'VIDEO'` — never lowercase.
+## Album slug
+
+```ts
+slugify(folderName, { lower: true, strict: true });
+```

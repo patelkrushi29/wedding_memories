@@ -4,6 +4,8 @@ globs: src/app/api/**/*.ts
 
 # Rules for API Routes
 
+**Full docs:** `docs/API.md` · **Production media:** CDN/R2 URLs via StorageProvider (`docs/STORAGE.md`)
+
 You are editing an API route. Follow these rules exactly.
 
 ## Required in every guest-facing query
@@ -43,5 +45,6 @@ import { prisma } from '@/lib/db';  // always — never new PrismaClient()
 ```
 
 ## Auth
-API routes under `/api/*` are excluded from proxy.ts auth checks.
+API routes under `/api/*` are excluded from `src/proxy.ts` auth checks.
+Admin routes must check `ADMIN_REINDEX_SECRET` in production.
 If a route needs protection, add the check inside the handler itself.

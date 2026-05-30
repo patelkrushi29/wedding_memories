@@ -2,6 +2,8 @@
 
 Use these checklists to verify the app works correctly after changes. Every task should pass the relevant checklist before being marked complete.
 
+**Production go-live:** After C1–C6 (`docs/DEPLOY.md`), run smoke tests against the **Vercel URL** with Postgres + R2 — not only local SQLite.
+
 ---
 
 ## Smoke Test (run after every change)

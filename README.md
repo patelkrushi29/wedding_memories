@@ -1,117 +1,94 @@
 # Wedding Memories Gallery
 
-A private, password-protected wedding photo and video gallery. Built with Next.js, Prisma, and Tailwind CSS.
+A private wedding photo and video gallery for family and guests. Built with Next.js, Prisma, and Tailwind CSS.
+
+**Default branch:** `main` (unified baseline: app MVP + `.claude/` tooling + cloud deploy docs).
+
+## Going live?
+
+**Read [`docs/DEPLOY.md`](docs/DEPLOY.md)** — production uses **PostgreSQL** (Supabase or Neon), **Cloudflare R2** for media, and **Vercel** for hosting. We are **not** using SQLite or a local-database-then-migrate path in production.
+
+**Owner scale:** ~10k photos, long videos, shared password + passwordless family link, custom domain. Owner imports media; guest uploads come later.
 
 ## Features
 
-- Password-protected gallery
+- Password-protected gallery (+ planned family link without password)
 - Photo and video support
-- Automatic album creation from folder structure
-- Masonry photo grid
-- Full-screen media viewer with keyboard navigation
-- Favorite/select photos and download them
-- Admin panel for managing imports
+- Albums from folder structure
+- Masonry grid, lightbox, favorites, admin reindex
+- Target: CDN-backed media at scale
 
-## Setup
+## Local development (interim)
 
-### 1. Install dependencies
+Until cloud tasks (C1–C3) land in code, you can run the legacy local stack:
+
+### 1. Install
 
 ```bash
 npm install
+npx prisma generate
 ```
 
-### 2. Configure environment
-
-Copy the example environment file:
+### 2. Environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` to set your passwords and paths:
+For new work, prefer pointing `DATABASE_URL` at a **dev Postgres** instance (see DEPLOY.md) instead of SQLite.
 
-```
-DATABASE_URL="file:./dev.db"
-MEDIA_ROOT="./media/wedding"
-NEXT_PUBLIC_APP_NAME="Wedding Memories"
-GUEST_PASSWORD="yourpassword"
-ADMIN_REINDEX_SECRET="your-admin-secret"
-```
-
-### 3. Set up the database
+### 3. Database
 
 ```bash
-npx prisma migrate dev --name init
+npx prisma migrate dev
 ```
 
-### 4. Add your media files
-
-Place your wedding photos and videos inside `media/wedding/`:
+### 4. Add media
 
 ```
 media/wedding/
-  ceremony/
-    photo1.jpg
-    photo2.jpg
-  reception/
-    video1.mp4
-  highlights/           <- special folder, marks photos as highlights
-    best_shot.jpg
-  standalone_photo.jpg  <- goes to "All Media" album
+  Highlights/
+  Ceremony/
+  ...
 ```
 
-### 5. Import media
+### 5. Import and run
 
 ```bash
 npm run import:media
-```
-
-This will:
-- Scan the media folder recursively
-- Create albums from subfolders
-- Generate thumbnails (requires sharp)
-- Extract EXIF data (date taken, etc.)
-
-### 6. Start the development server
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and enter your gallery password.
+Open [http://localhost:3000](http://localhost:3000) — default password `wedding` (change in `.env`).
 
-## Available Scripts
+## Scripts
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Build for production |
-| `npm run import:media` | Scan and import media files |
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm run import:media` | Import from `MEDIA_ROOT` (→ R2 when cloud import ships) |
 | `npm run generate:thumbnails` | Regenerate missing thumbnails |
-| `npm run reset:local` | Delete all data and generated files |
-| `npm run db:studio` | Open Prisma Studio (database viewer) |
-| `npm run db:migrate` | Run database migrations |
+| `npm run reset:local` | Wipe local DB + generated thumbs (legacy dev) |
+| `npm run db:studio` | Prisma Studio |
 
-## Folder Structure
+## Documentation
+
+| Doc | Purpose |
+|-----|---------|
+| [`CLAUDE.md`](CLAUDE.md) | Agent operating manual |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | **Production setup (start here for go-live)** |
+| [`docs/TASKS.md`](docs/TASKS.md) | Current tasks |
+| [`docs/PLAN.md`](docs/PLAN.md) | Phases and gap analysis |
+
+## Folder structure
 
 ```
-src/
-  app/               Next.js App Router pages
-  components/        Reusable UI components
-  lib/               Database, utilities, storage
-scripts/             CLI scripts for media management
-prisma/              Database schema and migrations
-media/wedding/       Your wedding photos and videos (git-ignored)
-public/generated/    Auto-generated thumbnails (git-ignored)
+src/app/          Pages and API routes
+src/components/   UI
+src/lib/          DB, storage
+scripts/          Import and maintenance
+prisma/           Schema and migrations
+media/wedding/    Staging folder for import (gitignored)
+docs/             Full documentation
 ```
-
-## Production
-
-For production deployment, set `NODE_ENV=production` and ensure all environment variables are configured. The database file and media folder should be stored on persistent storage.
-
-## Tips
-
-- Organize photos into subfolders — each subfolder becomes an album
-- Name a folder `highlights` for featured photos on the main page
-- Videos are supported but thumbnails require `ffmpeg` to be installed
-- Use the Admin page to reindex after adding new photos

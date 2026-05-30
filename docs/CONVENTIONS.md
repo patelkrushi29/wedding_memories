@@ -195,9 +195,15 @@ import { prisma } from '@/lib/db';
 
 Never create `new PrismaClient()` in app code (API routes, pages, components).
 
-### New PrismaClient in scripts
+### Prisma in scripts
 
-Scripts (`scripts/*.ts`) run as standalone Node processes. They create their own `new PrismaClient()`. This is correct and expected.
+Scripts import the shared client:
+
+```ts
+import { prisma } from './db';
+```
+
+`scripts/db.ts` mirrors `src/lib/db.ts`. Target: standard Postgres client (no libsql). See `docs/DATABASE.md`.
 
 ### Migrations
 

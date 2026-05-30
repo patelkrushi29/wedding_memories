@@ -50,13 +50,13 @@ Every non-obvious decision in this codebase, why it was made, and what breaks if
 
 **Consequence:** No session expiry logic, no user identity, no password hashing. Cookie lasts 30 days.
 
-**What breaks if changed:** If you switch to NextAuth or Supabase Auth, update: `src/middleware.ts` (cookie check logic), `src/app/api/auth/guest-password/route.ts` (replace with new auth flow), `src/app/auth/page.tsx` (login form). The `SiteSetting.guestPasswordHash` field exists in the schema for future bcrypt use.
+**What breaks if changed:** If you switch to NextAuth or Supabase Auth, update: `src/proxy.ts` (cookie check logic), `src/app/api/auth/guest-password/route.ts` (replace with new auth flow), `src/app/auth/page.tsx` (login form). The `SiteSetting.guestPasswordHash` field exists in the schema for future bcrypt use.
 
 ---
 
 ## D5: Middleware excludes all /api/* from auth
 
-**Decision:** `src/middleware.ts` does not check auth for any `/api/*` route.
+**Decision:** `src/proxy.ts` does not check auth for any `/api/*` route.
 
 **Why:** API routes serve media files (thumbnails, previews, downloads) that are referenced by authenticated pages. Adding auth checks to every API route would require passing cookies in every `<img src>` and `<video src>` tag, which browsers don't do automatically for resource loads in some cases.
 
@@ -130,15 +130,62 @@ Every non-obvious decision in this codebase, why it was made, and what breaks if
 
 ---
 
-## D12: Google Fonts loaded via CSS @import
+## D12: Google Fonts via next/font (supersedes CSS @import)
 
-**Decision:** Playfair Display and Inter are loaded via a CSS `@import url(...)` in `globals.css`.
+**Decision:** Playfair Display and Inter load via `next/font/google` in `src/app/layout.tsx`.
 
-**Why:** Simple and works. The alternative (`next/font`) provides better performance but requires changes to layout.tsx and how `font-serif` is applied.
+**Why:** CSS `@import` after Tailwind caused parse errors; `next/font` avoids render-blocking requests and layout shift.
 
-**What breaks if changed:** If you switch to `next/font`, remove the `@import` from `globals.css`, update `layout.tsx` to use the font variables, and update the `.font-serif` CSS class.
+**What breaks if changed:** If you remove `next/font`, restore font variables on `<html>` / `<body>` and `.font-serif` in CSS.
 
 ---
+
+## D15: PostgreSQL from day one (no production SQLite)
+
+**Decision:** Production uses **Supabase or Neon Postgres** via `DATABASE_URL`. Do not deploy `file:./dev.db` or plan a SQLite → Postgres migration path.
+
+**Why:** Owner wants cloud from the start (~10k assets); SQLite is wrong for Vercel and multi-GB libraries.
+
+**Consequence:** C1 removes libsql adapter; migrations run on cloud DB. Local dev should use dev Postgres when possible.
+
+**See:** `docs/DEPLOY.md`, `docs/DATABASE.md`.
+
+---
+
+## D16: Cloudflare R2 for media (not Cloudinary default)
+
+**Decision:** Store originals, thumbnails, and video in **R2**, serve via **Cloudflare CDN**. Not Cloudinary at default for ~10k photos + long video.
+
+**Why:** Cost and control at scale; import already generates thumbs with sharp/ffmpeg.
+
+**Consequence:** Implement `r2StorageProvider`; import uploads after processing; grids use CDN URLs.
+
+**See:** `docs/STORAGE.md`, `docs/DEPLOY.md` C2–C4.
+
+---
+
+## D17: Dual guest access — password + family link
+
+**Decision:** Most guests use `GUEST_PASSWORD`. Parents use a **passwordless link** with `FAMILY_VIEW_TOKEN` (e.g. `/view/[token]`).
+
+**Why:** Owner request; parents should not type passwords.
+
+**Consequence:** C5 adds route + proxy exclusion + cookie; link must stay private.
+
+**See:** `docs/AUTH.md`.
+
+---
+
+## D18: Owner import only in phase 1
+
+**Decision:** No guest uploads until after cloud gallery is stable.
+
+**Why:** Scope control for first go-live.
+
+**Consequence:** Only `import-media` / admin reindex add assets.
+
+---
+
 
 ## D13: Video poster stored in both posterPath and thumbnailPath
 

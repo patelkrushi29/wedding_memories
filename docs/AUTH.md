@@ -1,70 +1,105 @@
 # Auth
 
-## How the Password Gate Works End to End
+## Production access model (planned)
+
+| Audience | How they get in |
+|----------|-----------------|
+| Most guests | Shared password → `POST /api/auth/guest-password` → cookie |
+| Parents / family | **Passwordless link** — no typing required |
+| Admin (you) | Same password + `/admin` (reindex protected by secret) |
+
+**Guest uploads:** not in phase 1.
+
+Configure in production:
+
+- `GUEST_PASSWORD` — strong secret
+- `FAMILY_VIEW_TOKEN` — long random string (e.g. 32+ bytes hex)
+- Family URL shape (to implement): `https://photos.yourdomain.com/view/<FAMILY_VIEW_TOKEN>`
+
+See `docs/DEPLOY.md` (C5).
+
+---
+
+## Current implementation (local MVP)
+
+### Password gate flow
 
 1. Guest visits any page (e.g. `/highlights`).
-2. `src/proxy.ts` runs — checks for cookie `wg-auth=authenticated`.
+2. `src/proxy.ts` runs — checks cookie `wg-auth=authenticated` (or family cookie when built).
 3. Cookie missing or wrong → redirect to `/auth`.
-4. Guest fills in the password form at `/auth` and submits.
-5. `POST /api/auth/guest-password` is called with `{ password: "..." }`.
-6. Route compares the submitted value against `process.env.GUEST_PASSWORD` (default: `"wedding"`).
-7. Match → response sets cookie and returns `{ ok: true }`.
-8. No match → returns `{ ok: false, error: "Invalid password" }` with HTTP 401.
-9. On success, the auth page redirects the browser to `/highlights`.
-10. All subsequent requests include the cookie — middleware lets them through.
+4. Guest submits password on `/auth`.
+5. `POST /api/auth/guest-password` with `{ "password": "..." }`.
+6. Compared to `process.env.GUEST_PASSWORD` (default `"wedding"`) — **plaintext today**.
+7. Success → httpOnly cookie, redirect `/highlights`.
 
-## Cookie Details
+### Family link (not built yet — C5)
 
-| Property | Value |
-|---|---|
-| Name | `wg-auth` |
-| Value | `authenticated` (literal string) |
-| httpOnly | true (not accessible from JS) |
-| path | `/` (applies to all routes) |
-| maxAge | 30 days (2 592 000 seconds) |
-| sameSite | Not explicitly set — defaults to Lax |
-| secure | Not set — HTTP is fine for local prototype |
+Planned behavior:
 
-## Middleware Logic
+1. Guest opens `/view/[FAMILY_VIEW_TOKEN]` (exact path TBD).
+2. Server compares token to `process.env.FAMILY_VIEW_TOKEN` (constant-time).
+3. On match → set cookie e.g. `wg-auth=family` or `authenticated`, redirect to `/highlights`.
+4. `src/proxy.ts` allows access without visiting `/auth`.
+5. **Security:** anyone with the link sees the full gallery — acceptable for parents; do not post link publicly.
 
-`src/proxy.ts` applies to all routes except:
+---
 
-| Excluded path | Reason |
-|---|---|
-| `/api/*` | API routes handle their own auth where needed |
-| `/_next/*` | Next.js static assets |
-| `/generated/*` | Pre-generated thumbnails served statically |
-| `/auth` (exact) | The login page itself must be reachable |
-| `/favicon.ico` | Browser always fetches this without cookies |
+## Cookie details (current)
 
-The `config.matcher` uses a negative lookahead to exclude `_next/static`, `_next/image`, and `favicon.ico` from middleware execution entirely (Next.js edge middleware constraint).
+| Property | Value | Production target |
+|----------|--------|-------------------|
+| Name | `wg-auth` | Same |
+| Value | `authenticated` | `authenticated` or `family` |
+| httpOnly | true | true |
+| path | `/` | `/` |
+| maxAge | 30 days | 30 days |
+| secure | **not set** | **`true`** (HTTPS) |
+| sameSite | Lax (default) | Lax |
 
-**Important historical note:** The `.gitignore` previously used `/media/` (anchored to root) instead of `media/`. The unanchored form `media/` accidentally matched `src/app/api/media/` routes in some tools. Always use the anchored form `/media/` in `.gitignore`.
+---
 
-## Security Note
+## Proxy (`src/proxy.ts`)
 
-This is **prototype-grade auth only**. Specifically:
+Excluded paths:
 
-- Password is stored in plaintext in an environment variable.
-- Cookie value is a fixed string — anyone who knows it can set it manually.
-- No rate limiting on `/api/auth/guest-password`.
-- No CSRF protection.
-- Cookie is not `secure` — fine on localhost, wrong for HTTPS.
+| Path | Reason |
+|------|--------|
+| `/api/*` | Media + auth APIs (see security note) |
+| `/_next/*` | Next.js assets |
+| `/generated/*` | Legacy local thumbnails |
+| `/auth` | Login page |
+| `/view/*` | **Planned** — family link entry |
+| `/favicon.ico` | Browser fetch |
 
-Do not use this auth system for anything sensitive or internet-facing.
+---
 
-## Upgrading to Real Auth
+## Security note (current — not production-ready)
 
-When this moves to production, replace the password gate with one of:
+- Plaintext password in env
+- Fixed cookie value guessable if leaked
+- No rate limiting
+- `/api/*` not behind auth (media URLs work without cookie)
+- Not suitable for public internet until **C5** complete
 
-**Option A — NextAuth.js**
-- Install `next-auth`, configure a credentials provider or OAuth.
-- Replace middleware cookie check with `getServerSession()`.
-- The `/api/auth/*` namespace is reserved by NextAuth — rename the current guest-password route to `/api/auth/guest` or similar.
+### Production hardening (C5)
 
-**Option B — Supabase Auth**
-- Use `@supabase/ssr` and `createServerClient()` in middleware.
-- Replace cookie check with `supabase.auth.getUser()`.
-- Supports email magic links, OAuth, and row-level security.
+- [ ] Bcrypt compare against hash (env or `SiteSetting.guestPasswordHash`)
+- [ ] `Secure` + `HttpOnly` cookies
+- [ ] Rate limit `/api/auth/guest-password`
+- [ ] Protect `/api/admin/*` with `ADMIN_REINDEX_SECRET`
+- [ ] Media: public CDN URLs on R2 (obscure IDs) or signed URLs with TTL
+- [ ] Document family link rotation if token is leaked
 
-In both cases: remove `src/app/api/auth/guest-password/route.ts`, remove the `GUEST_PASSWORD` env var, and update `SiteSetting.guestPasswordHash` to store a bcrypt hash if a fallback password gate is still needed.
+---
+
+## Upgrading auth (optional later)
+
+**v0.2 uses custom password + family link** — no Supabase Auth required.
+
+**Later options:**
+
+**NextAuth.js** — credentials or OAuth; reserve `/api/auth/*` namespace conflict with guest route rename.
+
+**Supabase Auth** — magic links, OAuth; only if you want email-based login for many users.
+
+For phase 1, bcrypt + cookies + family token is enough.

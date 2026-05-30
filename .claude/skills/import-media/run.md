@@ -1,15 +1,18 @@
 # Import Media Skill
 
-Import wedding photos and videos from `media/wedding/` into the database and generate thumbnails.
+Import wedding photos/videos from `media/wedding/` into the database and generate thumbnails.
+
+**Docs:** `docs/MEDIA-IMPORT.md` · **Cloud target:** `docs/DEPLOY.md` C3 (R2 + Postgres)
 
 ## Steps
-1. Check `media/wedding/` exists and has files
-2. Run `npm run import:media`
-3. Parse summary output (albums created, photos, videos, errors)
-4. If errors > 0, show which files failed and why
-5. Report totals and tell user to refresh the browser
+1. Ensure `media/wedding/` exists and has files (owner staging folder)
+2. `npx prisma generate` if schema changed
+3. Run `npm run import:media`
+4. Parse summary (albums, photos, videos, errors)
+5. If errors > 0, list failed files
+6. Tell user to refresh browser or check Vercel deploy
 
 ## If the script crashes
-- Check `scripts/import-media.ts` imports from `./db`, not `new PrismaClient()`
-- Check `scripts/db.ts` exists
-- Check `prisma.config.ts` exists at project root
+- Import must use `import { prisma } from './db'` in `scripts/import-media.ts`
+- Windows: `pathToFileURL` in `scripts/db.ts` for SQLite dev
+- Production: `DATABASE_URL` must be Postgres (see DEPLOY C1)
