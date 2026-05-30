@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { thumbnailUrlFor } from '@/lib/storage/assetUrls';
 
 export async function GET() {
   const albums = await prisma.album.findMany({
@@ -25,9 +26,7 @@ export async function GET() {
     photoCount: 0,
     videoCount: 0,
     totalCount: album._count.assets,
-    coverThumbnailUrl: album.assets[0]
-      ? `/api/media/${album.assets[0].id}/thumbnail`
-      : null,
+    coverThumbnailUrl: album.assets[0] ? thumbnailUrlFor(album.assets[0]) : null,
   }));
 
   return NextResponse.json(result);

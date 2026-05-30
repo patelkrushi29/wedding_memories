@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { r2RedirectUrl } from '@/lib/media/resolve';
+import { isLocalFilesystemPath } from '@/lib/r2/client';
 import * as fs from 'fs';
 
 export async function GET(
@@ -13,8 +15,13 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  if (!fs.existsSync(asset.originalPath)) {
-    return NextResponse.json({ error: 'File not found on disk' }, { status: 404 });
+  const r2Url = r2RedirectUrl(asset.originalPath);
+  if (r2Url) {
+    return NextResponse.redirect(r2Url, 307);
+  }
+
+  if (!isLocalFilesystemPath(asset.originalPath) || !fs.existsSync(asset.originalPath)) {
+    return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }
 
   const stat = fs.statSync(asset.originalPath);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { attachMediaUrls } from '@/lib/storage/assetUrls';
 import type { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
@@ -57,12 +58,7 @@ export async function GET(request: NextRequest) {
   ]);
 
   return NextResponse.json({
-    items: items.map(({ originalPath: _, thumbnailPath: _t, posterPath: _p, ...a }) => ({
-      ...a,
-      thumbnailUrl: `/api/media/${a.id}/thumbnail`,
-      previewUrl: `/api/media/${a.id}/preview`,
-      downloadUrl: `/api/media/${a.id}/download`,
-    })),
+    items: items.map((asset) => attachMediaUrls(asset)),
     page,
     limit,
     total,

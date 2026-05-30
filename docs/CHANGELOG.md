@@ -4,6 +4,17 @@ Chronological record of every session's work, decisions made, and code changes. 
 
 ---
 
+## Session 3 — 2026-05-30 — Supabase Postgres + Cloudflare R2
+
+### What was done
+
+- **C1:** PostgreSQL via Supabase (`@prisma/adapter-pg`), removed SQLite/libsql
+- **C2/C3:** R2 upload on import, CDN URLs in API (`attachMediaUrls`)
+- `next.config.ts` remote images for `*.r2.dev`
+- Updated `.env.example`, `docs/TASKS.md`
+
+---
+
 ## Session 2 (continued) — 2026-05-30 — Unified baseline on `main`
 
 ### What was done

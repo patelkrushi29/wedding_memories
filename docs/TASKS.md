@@ -52,22 +52,19 @@
 
 Read **`docs/DEPLOY.md`** for full detail. Summary:
 
-### C1: PostgreSQL (Supabase or Neon) — no local DB for new work
-- [ ] `schema.prisma` → `postgresql`
-- [ ] Remove libsql from `src/lib/db.ts`, `scripts/db.ts`
-- [ ] `prisma.config.ts` → `env("DATABASE_URL")`
-- [ ] Migrate against cloud DB; `postinstall`: `prisma generate`
-- [ ] Owner creates Supabase/Neon project; devs use that `DATABASE_URL`
+### C1: PostgreSQL (Supabase or Neon) — done
+- [x] `schema.prisma` → `postgresql`
+- [x] `@prisma/adapter-pg` in `src/lib/db.ts`, `scripts/db.ts`
+- [x] `prisma.config.ts` → `env("DATABASE_URL")`
+- [x] `postinstall`: `prisma generate`
 
-### C2: Cloudflare R2 StorageProvider
-- [ ] `r2StorageProvider.ts` (S3-compatible API)
-- [ ] Env vars: `R2_*`, `R2_PUBLIC_BASE_URL`
-- [ ] Wire API responses to CDN URLs
+### C2: Cloudflare R2 StorageProvider — done
+- [x] `src/lib/r2/client.ts`, `r2StorageProvider.ts`, `attachMediaUrls`
+- [x] API routes return CDN URLs when R2 configured
 
-### C3: Import uploads to R2
-- [ ] `import-media.ts`: sharp thumbs → upload originals + thumbs to R2
-- [ ] Postgres rows store keys/URLs, not local absolute paths
-- [ ] Progress + error reporting for 10k files
+### C3: Import uploads to R2 — done
+- [x] `import-media.ts` uploads to `media/` + `thumbnails/` keys
+- [x] Progress logging every 25 files
 
 ### C4: Video via CDN
 - [ ] Hour-long videos from R2 (range requests), not Vercel API proxy

@@ -4,12 +4,14 @@ import sharp from 'sharp';
 import slugify from 'slugify';
 import { execSync } from 'child_process';
 import { prisma } from './db';
+import { isLocalFilesystemPath, isR2Configured, isR2ObjectKey, uploadToR2 } from './r2';
 
 const PHOTO_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 const VIDEO_EXTS = new Set(['.mp4', '.mov', '.m4v', '.webm']);
 
 const MEDIA_ROOT = process.env.MEDIA_ROOT || './media/wedding';
 const THUMB_DIR = path.join(process.cwd(), 'public', 'generated', 'thumbnails');
+const useR2 = isR2Configured();
 
 function walkDir(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
@@ -35,7 +37,7 @@ async function getOrCreateAlbum(title: string, relativePath: string | null, sort
   });
 }
 
-async function generateThumbnail(srcPath: string, assetId: string): Promise<string | null> {
+async function generateThumbnailLocal(srcPath: string, assetId: string): Promise<string | null> {
   try {
     fs.mkdirSync(THUMB_DIR, { recursive: true });
     const thumbPath = path.join(THUMB_DIR, `${assetId}.webp`);
@@ -46,8 +48,9 @@ async function generateThumbnail(srcPath: string, assetId: string): Promise<stri
   }
 }
 
-async function generateVideoPoster(srcPath: string, assetId: string): Promise<string | null> {
+async function generateVideoPosterLocal(srcPath: string, assetId: string): Promise<string | null> {
   try {
+    fs.mkdirSync(THUMB_DIR, { recursive: true });
     const posterPath = path.join(THUMB_DIR, `${assetId}_poster.jpg`);
     execSync(`ffmpeg -y -i "${srcPath}" -ss 00:00:01 -vframes 1 "${posterPath}" 2>/dev/null`);
     return `/generated/thumbnails/${assetId}_poster.jpg`;
@@ -56,11 +59,118 @@ async function generateVideoPoster(srcPath: string, assetId: string): Promise<st
   }
 }
 
+function mediaObjectKey(relativePath: string): string {
+  return `media/${relativePath.replace(/^\//, '')}`;
+}
+
+function thumbnailObjectKey(assetId: string): string {
+  return `thumbnails/${assetId}.webp`;
+}
+
+function posterObjectKey(assetId: string): string {
+  return `thumbnails/${assetId}_poster.jpg`;
+}
+
+async function uploadPhotoToR2(
+  filePath: string,
+  assetId: string,
+  relativePath: string,
+  mimeType: string
+): Promise<{ originalPath: string; thumbnailPath: string | null }> {
+  const mediaKey = mediaObjectKey(relativePath);
+  const originalBuffer = fs.readFileSync(filePath);
+  await uploadToR2(mediaKey, originalBuffer, mimeType);
+
+  let thumbnailPath: string | null = null;
+  try {
+    const thumbBuffer = await sharp(filePath).resize(600).webp({ quality: 80 }).toBuffer();
+    const thumbKey = thumbnailObjectKey(assetId);
+    await uploadToR2(thumbKey, thumbBuffer, 'image/webp');
+    thumbnailPath = thumbKey;
+  } catch (err) {
+    console.error(`  Thumbnail failed for ${relativePath}:`, err);
+  }
+
+  return { originalPath: mediaKey, thumbnailPath };
+}
+
+async function uploadVideoToR2(
+  filePath: string,
+  assetId: string,
+  relativePath: string,
+  mimeType: string
+): Promise<{ originalPath: string; thumbnailPath: string | null; posterPath: string | null }> {
+  const mediaKey = mediaObjectKey(relativePath);
+  const originalBuffer = fs.readFileSync(filePath);
+  await uploadToR2(mediaKey, originalBuffer, mimeType);
+
+  let thumbnailPath: string | null = null;
+  let posterPath: string | null = null;
+  try {
+    fs.mkdirSync(THUMB_DIR, { recursive: true });
+    const localPoster = path.join(THUMB_DIR, `${assetId}_poster.jpg`);
+    execSync(`ffmpeg -y -i "${filePath}" -ss 00:00:01 -vframes 1 "${localPoster}" 2>/dev/null`);
+    const posterKey = posterObjectKey(assetId);
+    const posterBuffer = fs.readFileSync(localPoster);
+    await uploadToR2(posterKey, posterBuffer, 'image/jpeg');
+    thumbnailPath = posterKey;
+    posterPath = posterKey;
+  } catch (err) {
+    console.error(`  Video poster failed for ${relativePath}:`, err);
+  }
+
+  return { originalPath: mediaKey, thumbnailPath, posterPath };
+}
+
+async function syncMediaFiles(
+  filePath: string,
+  assetId: string,
+  relativePath: string,
+  isPhoto: boolean,
+  mimeType: string
+): Promise<{ originalPath: string; thumbnailPath: string | null; posterPath?: string | null }> {
+  if (useR2) {
+    if (isPhoto) {
+      return uploadPhotoToR2(filePath, assetId, relativePath, mimeType);
+    }
+    return uploadVideoToR2(filePath, assetId, relativePath, mimeType);
+  }
+
+  const originalPath = filePath;
+  if (isPhoto) {
+    const thumbnailPath = await generateThumbnailLocal(filePath, assetId);
+    return { originalPath, thumbnailPath };
+  }
+  const posterPath = await generateVideoPosterLocal(filePath, assetId);
+  return {
+    originalPath,
+    thumbnailPath: posterPath,
+    posterPath,
+  };
+}
+
+function needsMediaSync(
+  originalPath: string,
+  thumbnailPath: string | null,
+  isPhoto: boolean
+): boolean {
+  if (useR2) {
+    return !isR2ObjectKey(originalPath) || !thumbnailPath || !isR2ObjectKey(thumbnailPath);
+  }
+  return isLocalFilesystemPath(originalPath) || !thumbnailPath;
+}
+
 async function main() {
   const mediaRoot = path.resolve(MEDIA_ROOT);
   if (!fs.existsSync(mediaRoot)) {
     fs.mkdirSync(mediaRoot, { recursive: true });
     console.log(`Created media directory: ${mediaRoot}`);
+  }
+
+  if (useR2) {
+    console.log('Storage: Cloudflare R2');
+  } else {
+    console.log('Storage: local disk (set R2_* env vars for cloud upload)');
   }
 
   const allFiles = walkDir(mediaRoot);
@@ -72,15 +182,18 @@ async function main() {
   console.log(`Found ${mediaFiles.length} media files`);
 
   let imported = 0;
-  let skipped = 0;
   let errors = 0;
 
-  // Mark all existing assets as unavailable first
   await prisma.asset.updateMany({ data: { isAvailable: false } });
 
   const albumCache: Record<string, { id: string }> = {};
 
-  for (const filePath of mediaFiles) {
+  for (let i = 0; i < mediaFiles.length; i++) {
+    const filePath = mediaFiles[i];
+    if ((i + 1) % 25 === 0 || i === mediaFiles.length - 1) {
+      console.log(`Processing ${i + 1}/${mediaFiles.length}...`);
+    }
+
     try {
       const ext = path.extname(filePath).toLowerCase();
       const isPhoto = PHOTO_EXTS.has(ext);
@@ -92,7 +205,6 @@ async function main() {
       const filename = parts[parts.length - 1];
       const inSubfolder = parts.length > 1;
 
-      // Determine album
       let albumTitle: string;
       let albumRelPath: string | null = null;
       let isHighlight = false;
@@ -134,6 +246,10 @@ async function main() {
         } catch {}
       }
 
+      const mimeType = isPhoto
+        ? `image/${ext.slice(1) === 'jpg' ? 'jpeg' : ext.slice(1)}`
+        : `video/${ext.slice(1)}`;
+
       const existing = await prisma.asset.findUnique({ where: { relativePath } });
       let assetId = existing?.id;
 
@@ -146,7 +262,7 @@ async function main() {
             originalPath: filePath,
             relativePath,
             extension: ext.slice(1),
-            mimeType: isPhoto ? `image/${ext.slice(1)}` : `video/${ext.slice(1)}`,
+            mimeType,
             fileSizeBytes: stat.size,
             width,
             height,
@@ -160,24 +276,33 @@ async function main() {
       } else {
         await prisma.asset.update({
           where: { id: assetId },
-          data: { isAvailable: true, modifiedAt: stat.mtime, albumId: album.id },
+          data: {
+            isAvailable: true,
+            modifiedAt: stat.mtime,
+            albumId: album.id,
+            filename,
+            fileSizeBytes: stat.size,
+            width,
+            height,
+            takenAt,
+          },
         });
       }
 
-      // Generate thumbnail
-      const asset = await prisma.asset.findUnique({ where: { id: assetId } });
-      if (asset && !asset.thumbnailPath) {
-        if (isPhoto) {
-          const thumbPath = await generateThumbnail(filePath, assetId);
-          if (thumbPath) {
-            await prisma.asset.update({ where: { id: assetId }, data: { thumbnailPath: thumbPath } });
-          }
-        } else if (isVideo) {
-          const posterPath = await generateVideoPoster(filePath, assetId);
-          if (posterPath) {
-            await prisma.asset.update({ where: { id: assetId }, data: { posterPath, thumbnailPath: posterPath } });
-          }
-        }
+      const current = await prisma.asset.findUnique({ where: { id: assetId } });
+      if (
+        current &&
+        needsMediaSync(current.originalPath, current.thumbnailPath, isPhoto)
+      ) {
+        const synced = await syncMediaFiles(filePath, assetId, relativePath, isPhoto, mimeType);
+        await prisma.asset.update({
+          where: { id: assetId },
+          data: {
+            originalPath: synced.originalPath,
+            thumbnailPath: synced.thumbnailPath,
+            posterPath: synced.posterPath ?? synced.thumbnailPath,
+          },
+        });
       }
 
       imported++;
@@ -190,7 +315,6 @@ async function main() {
   const missing = await prisma.asset.count({ where: { isAvailable: false } });
   console.log(`\nImport complete:`);
   console.log(`  Imported/updated: ${imported}`);
-  console.log(`  Skipped: ${skipped}`);
   console.log(`  Errors: ${errors}`);
   console.log(`  Missing files marked unavailable: ${missing}`);
 
