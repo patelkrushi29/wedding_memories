@@ -33,7 +33,7 @@ export async function GET(
 
   return NextResponse.json({
     album,
-    assets: assets.map((a) => ({
+    assets: assets.map(({ originalPath: _, thumbnailPath: _t, posterPath: _p, ...a }) => ({
       ...a,
       thumbnailUrl: `/api/media/${a.id}/thumbnail`,
       previewUrl: `/api/media/${a.id}/preview`,

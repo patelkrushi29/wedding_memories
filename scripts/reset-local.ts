@@ -1,8 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from './db';
 
 async function main() {
   console.log('Resetting local database...');

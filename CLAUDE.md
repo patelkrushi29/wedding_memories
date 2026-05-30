@@ -10,10 +10,16 @@ A self-hosted wedding photo/video gallery. Local-first MVP: Next.js + SQLite + P
 
 This file is the entry point. Read it fully on every session. Then load ONLY the doc file relevant to your task.
 
+### For session handoff (start here if new session)
+| Need | Read |
+|---|---|
+| What's done, what's next, pick a task | `docs/TASKS.md` |
+| Chronological history of all work | `docs/CHANGELOG.md` |
+
 ### For understanding and planning
 | Need | Read |
 |---|---|
-| What to work on next | `docs/PLAN.md` → Stabilization Phase |
+| Full gap analysis and phase plan | `docs/PLAN.md` |
 | Why something was built this way | `docs/DECISIONS.md` |
 | Full directory map and data flow | `docs/ARCHITECTURE.md` |
 | What's planned long-term | `docs/ROADMAP.md` |

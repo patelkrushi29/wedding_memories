@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
   ]);
 
   return NextResponse.json({
-    items: items.map((a) => ({
+    items: items.map(({ originalPath: _, thumbnailPath: _t, posterPath: _p, ...a }) => ({
       ...a,
       thumbnailUrl: `/api/media/${a.id}/thumbnail`,
       previewUrl: `/api/media/${a.id}/preview`,

@@ -1,9 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { PrismaClient } from '@prisma/client';
 import sharp from 'sharp';
-
-const prisma = new PrismaClient();
+import { prisma } from './db';
 const THUMB_DIR = path.join(process.cwd(), 'public', 'generated', 'thumbnails');
 
 async function main() {

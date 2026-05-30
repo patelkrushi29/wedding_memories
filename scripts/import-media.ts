@@ -1,11 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { PrismaClient } from '@prisma/client';
 import sharp from 'sharp';
 import slugify from 'slugify';
 import { execSync } from 'child_process';
-
-const prisma = new PrismaClient();
+import { prisma } from './db';
 
 const PHOTO_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 const VIDEO_EXTS = new Set(['.mp4', '.mov', '.m4v', '.webm']);
