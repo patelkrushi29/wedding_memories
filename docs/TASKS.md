@@ -2,7 +2,7 @@
 
 **Purpose:** Start every new Claude Code session by reading this file + CLAUDE.md. This tells you exactly what's done, what's next, and what to work on.
 
-**Last updated:** 2026-05-30, Session 2 (cloud-first plan + docs)
+**Last updated:** 2026-05-30, Session 2 — unified on `main` branch (`259e2bb` baseline)
 
 ---
 

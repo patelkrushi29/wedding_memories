@@ -2,6 +2,8 @@
 
 A private wedding photo and video gallery for family and guests. Built with Next.js, Prisma, and Tailwind CSS.
 
+**Default branch:** `main` (unified baseline: app MVP + `.claude/` tooling + cloud deploy docs).
+
 ## Going live?
 
 **Read [`docs/DEPLOY.md`](docs/DEPLOY.md)** — production uses **PostgreSQL** (Supabase or Neon), **Cloudflare R2** for media, and **Vercel** for hosting. We are **not** using SQLite or a local-database-then-migrate path in production.
