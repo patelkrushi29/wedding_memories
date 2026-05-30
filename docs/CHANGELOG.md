@@ -4,6 +4,16 @@ Chronological record of every session's work, decisions made, and code changes. 
 
 ---
 
+## Session 2 (continued) — 2026-05-30 — Unified baseline on `main`
+
+### What was done
+
+- Squashed Cursor docs + Claude Code `.claude/` structure into one commit on **`main`**: `259e2bb`
+- Pushed `origin/main`; aligned `claude/serene-darwin-wegA5` to the same commit
+- **Use `main` for all new work** going forward
+
+---
+
 ## Session 2 (continued) — 2026-05-30 — Merge .claude structure + align rules
 
 ### What was done
