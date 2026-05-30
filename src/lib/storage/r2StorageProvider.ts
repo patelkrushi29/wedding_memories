@@ -8,7 +8,10 @@ function urlFromStored(
 ): string {
   if (!stored) return `/api/media/${assetId}/${endpoint}`;
   if (stored.startsWith('http://') || stored.startsWith('https://')) return stored;
-  if (isR2ObjectKey(stored)) return publicObjectUrl(stored);
+  if (isR2ObjectKey(stored)) {
+    const url = publicObjectUrl(stored);
+    if (url) return url;
+  }
   return `/api/media/${assetId}/${endpoint}`;
 }
 

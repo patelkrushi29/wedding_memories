@@ -32,9 +32,15 @@ export function getR2Client(): S3Client {
   });
 }
 
-export function publicObjectUrl(key: string): string {
-  const base = process.env.R2_PUBLIC_BASE_URL!.replace(/\/$/, '');
+export function publicObjectUrl(key: string): string | null {
+  const base = process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, '');
+  if (!base) return null;
   return `${base}/${key.replace(/^\//, '')}`;
+}
+
+/** True when we can build public CDN URLs (read-only; no upload keys required). */
+export function isR2PublicConfigured(): boolean {
+  return Boolean(process.env.R2_PUBLIC_BASE_URL);
 }
 
 /** Object keys stored in the DB (media/..., thumbnails/...) */

@@ -1,28 +1,10 @@
 import { TopNav } from '@/components/TopNav';
 import { AlbumCard } from '@/components/AlbumCard';
 import { EmptyState } from '@/components/EmptyState';
-
-interface Album {
-  id: string;
-  title: string;
-  slug: string;
-  totalCount: number;
-  coverThumbnailUrl: string | null;
-}
-
-async function getAlbums(): Promise<Album[]> {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/albums`, {
-      cache: 'no-store',
-    });
-    return res.json();
-  } catch {
-    return [];
-  }
-}
+import { listAlbumsForGallery } from '@/lib/albums/queries';
 
 export default async function AlbumsPage() {
-  const albums = await getAlbums();
+  const albums = await listAlbumsForGallery();
 
   return (
     <div className="min-h-screen bg-[#faf9f6]">
@@ -36,7 +18,7 @@ export default async function AlbumsPage() {
         {albums.length === 0 ? (
           <EmptyState
             message="No albums yet"
-            description="Import your wedding photos to create albums automatically."
+            description="Run npm run sync:r2 after uploading files to R2 media/."
           />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">

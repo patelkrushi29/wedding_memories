@@ -1,4 +1,4 @@
-import { isLocalFilesystemPath, isR2Configured, isR2ObjectKey, publicObjectUrl } from '@/lib/r2/client';
+import { isLocalFilesystemPath, isR2ObjectKey, isR2PublicConfigured, publicObjectUrl } from '@/lib/r2/client';
 
 type AssetForUrls = {
   id: string;
@@ -19,16 +19,18 @@ function resolveMediaUrl(
     return stored;
   }
 
-  if (isR2Configured() && isR2ObjectKey(stored)) {
-    return publicObjectUrl(stored);
+  if (isR2PublicConfigured() && isR2ObjectKey(stored)) {
+    const url = publicObjectUrl(stored);
+    if (url) return url;
   }
 
   if (isLocalFilesystemPath(stored)) {
     return `/api/media/${assetId}/${endpoint}`;
   }
 
-  if (isR2Configured()) {
-    return publicObjectUrl(stored);
+  if (isR2PublicConfigured() && stored) {
+    const url = publicObjectUrl(stored);
+    if (url) return url;
   }
 
   return `/api/media/${assetId}/${endpoint}`;
