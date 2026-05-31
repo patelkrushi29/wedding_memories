@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { TopNav } from '@/components/TopNav';
 import { AlbumCard } from '@/components/AlbumCard';
 import { EmptyState } from '@/components/EmptyState';
