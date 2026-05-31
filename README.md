@@ -18,48 +18,36 @@ A private wedding photo and video gallery for family and guests. Built with Next
 - Masonry grid, lightbox, favorites, admin reindex
 - Target: CDN-backed media at scale
 
-## Local development (interim)
-
-Until cloud tasks (C1–C3) land in code, you can run the legacy local stack:
+## Setup (R2 + Supabase — typical)
 
 ### 1. Install
 
 ```bash
 npm install
-npx prisma generate
 ```
 
 ### 2. Environment
 
-```bash
-cp .env.example .env
-```
-
-For new work, prefer pointing `DATABASE_URL` at a **dev Postgres** instance (see DEPLOY.md) instead of SQLite.
+Copy `.env.example` → `.env` and set **Supabase** `DATABASE_URL` and **R2** variables. You do **not** need a `media/wedding` folder if files are already in the bucket.
 
 ### 3. Database
 
 ```bash
-npx prisma migrate dev
+npx prisma migrate deploy
 ```
 
-### 4. Add media
+### 4. Index files already in R2
 
-```
-media/wedding/
-  Highlights/
-  Ceremony/
-  ...
-```
-
-### 5. Import and run
+Upload to bucket `family-photos` under prefix `media/` (e.g. `media/test1.jpg` or `media/Ceremony/photo.jpg`), then:
 
 ```bash
-npm run import:media
+npm run sync:r2
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — default password `wedding` (change in `.env`).
+Open [http://localhost:3000](http://localhost:3000) — password from `GUEST_PASSWORD` in `.env`.
+
+Optional: `npm run import:media` only if you stage files on disk first (`MEDIA_ROOT`).
 
 ## Scripts
 
@@ -67,7 +55,8 @@ Open [http://localhost:3000](http://localhost:3000) — default password `weddin
 |--------|-------------|
 | `npm run dev` | Development server |
 | `npm run build` | Production build |
-| `npm run import:media` | Import from `MEDIA_ROOT` (→ R2 when cloud import ships) |
+| `npm run sync:r2` | **Index objects already in R2** `media/` → Postgres |
+| `npm run import:media` | Optional: copy from local `MEDIA_ROOT` folder → R2 + DB |
 | `npm run generate:thumbnails` | Regenerate missing thumbnails |
 | `npm run reset:local` | Wipe local DB + generated thumbs (legacy dev) |
 | `npm run db:studio` | Prisma Studio |
@@ -89,6 +78,7 @@ src/components/   UI
 src/lib/          DB, storage
 scripts/          Import and maintenance
 prisma/           Schema and migrations
-media/wedding/    Staging folder for import (gitignored)
+(R2 bucket)       family-photos/media/… — source of truth for files
+media/wedding/    Optional local staging only (gitignored)
 docs/             Full documentation
 ```

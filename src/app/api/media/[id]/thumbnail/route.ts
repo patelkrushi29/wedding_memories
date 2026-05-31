@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { r2RedirectUrl } from '@/lib/media/resolve';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -14,6 +15,11 @@ export async function GET(
     return new NextResponse(placeholder(), { headers: { 'Content-Type': 'image/svg+xml' } });
   }
 
+  const r2Url = r2RedirectUrl(asset.thumbnailPath ?? asset.posterPath);
+  if (r2Url) {
+    return NextResponse.redirect(r2Url, 302);
+  }
+
   const thumbPath = asset.thumbnailPath
     ? path.join(process.cwd(), 'public', asset.thumbnailPath)
     : null;
@@ -21,7 +27,8 @@ export async function GET(
   if (thumbPath && fs.existsSync(thumbPath)) {
     const buffer = fs.readFileSync(thumbPath);
     const ext = path.extname(thumbPath).toLowerCase();
-    const ct = ext === '.webp' ? 'image/webp' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
+    const ct =
+      ext === '.webp' ? 'image/webp' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': ct,
