@@ -21,7 +21,7 @@ import {
 
 const PHOTO_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 const VIDEO_EXTS = new Set(['.mp4', '.mov', '.m4v', '.webm']);
-const MEDIA_PREFIX = 'family-photos/media/';
+const MEDIA_PREFIX = 'media/';
 
 const skipThumbnails = process.argv.includes('--skip-thumbnails');
 
