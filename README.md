@@ -82,3 +82,5 @@ prisma/           Schema and migrations
 media/wedding/    Optional local staging only (gitignored)
 docs/             Full documentation
 ```
+
+# Deploy: cloud stack live (Postgres + R2 + Vercel)
