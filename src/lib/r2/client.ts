@@ -47,7 +47,7 @@ export function isR2PublicConfigured(): boolean {
 export function isR2ObjectKey(stored: string | null | undefined): boolean {
   if (!stored) return false;
   if (stored.startsWith('http://') || stored.startsWith('https://')) return true;
-  return stored.startsWith('media/') || stored.startsWith('thumbnails/');
+  return stored.startsWith('media/') || stored.startsWith('thumbnails/') || stored.startsWith('family-photos/');
 }
 
 export function isLocalFilesystemPath(stored: string): boolean {
