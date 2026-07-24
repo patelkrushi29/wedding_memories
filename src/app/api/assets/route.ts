@@ -9,8 +9,8 @@ export async function GET(request: NextRequest) {
   const albumSlug = searchParams.get('album');
   const search = searchParams.get('search');
   const sort = searchParams.get('sort') || 'newest';
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = parseInt(searchParams.get('limit') || '60');
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '60') || 60));
   const ids = searchParams.get('ids');
   const skip = (page - 1) * limit;
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   };
 
   if (type) where.type = type.toUpperCase();
-  if (search) where.filename = { contains: search };
+  if (search) where.filename = { contains: search, mode: 'insensitive' };
   if (ids) {
     const idList = ids.split(',').filter(Boolean);
     where.id = { in: idList };

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useCallback } from 'react';
-import Image from 'next/image';
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { FavoriteButton } from './FavoriteButton';
 import { Badge } from '@/components/ui/badge';

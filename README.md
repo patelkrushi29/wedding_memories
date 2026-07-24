@@ -57,8 +57,7 @@ Optional: `npm run import:media` only if you stage files on disk first (`MEDIA_R
 | `npm run build` | Production build |
 | `npm run sync:r2` | **Index objects already in R2** `media/` → Postgres |
 | `npm run import:media` | Optional: copy from local `MEDIA_ROOT` folder → R2 + DB |
-| `npm run generate:thumbnails` | Regenerate missing thumbnails |
-| `npm run reset:local` | Wipe local DB + generated thumbs (legacy dev) |
+| `npm run test:db` | Verify the database connection |
 | `npm run db:studio` | Prisma Studio |
 
 ## Documentation

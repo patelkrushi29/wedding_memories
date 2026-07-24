@@ -103,13 +103,13 @@ See `docs/PLAN.md` and `docs/TASKS.md`. Highlights:
 | # | Issue | Where | How to fix |
 |---|---|---|---|
 | 1 | Asset interface duplicated in 8 files | Pages + MediaCard, VideoCard, MediaViewerModal | `src/types/asset.ts` (S2) |
-| 2 | StorageProvider not wired | `localStorageProvider.ts` | R2 provider + S6 |
-| 3 | Albums page HTTP self-fetch | `albums/page.tsx` | Direct Prisma (S4) |
-| 4 | photoCount/videoCount always 0 | `api/albums/route.ts` | S3 |
-| 5 | Admin page 4 API calls | `admin/page.tsx` | `GET /api/admin/stats` (S5) |
-| 6 | No error boundaries | App routes | `error.tsx` (P6) |
-| 7 | **SQLite + local disk** | Whole stack | **C1–C3** in DEPLOY.md (cloud-first) |
-| 8 | No family view link | Auth | C5 in DEPLOY.md |
+| 2 | Admin page 4 API calls | `admin/page.tsx` | `GET /api/admin/stats` (S5) |
+| 3 | No error boundaries | App routes | `error.tsx` (P6) |
+| 4 | No family view link | Auth | C5 in DEPLOY.md |
+| 5 | Admin reindex runs local-only script (broken on Vercel) | `api/admin/reindex/route.ts` | Rework as serverless R2 sync or remove |
+| 6 | `/api/*` routes are unauthenticated (bypass password gate) | `src/proxy.ts` | Check `wg-auth` cookie in guest-facing APIs (C5) |
+
+Resolved 2026-07-23: StorageProvider dead code deleted (S6), albums page uses direct Prisma (S4), photoCount/videoCount fixed (S3), SQLite/local-disk stack replaced by Postgres + R2 (C1–C3).
 
 ---
 
@@ -121,7 +121,7 @@ When editing an area, limit changes to these files:
 
 **Media serving:** `src/app/api/media/[id]/download/route.ts`, `preview/route.ts`, `thumbnail/route.ts` (shrink when R2 CDN URLs used in UI)
 
-**Import pipeline:** `scripts/sync-r2-media.ts` (R2 → DB, primary), `scripts/import-media.ts` (optional local staging), `scripts/generate-thumbnails.ts`, `scripts/reset-local.ts`, `scripts/db.ts`
+**Import pipeline:** `scripts/sync-r2-media.ts` (R2 → DB, primary), `scripts/import-media.ts` (optional local staging), `scripts/db.ts`
 
 **Gallery pages:** `src/app/highlights/page.tsx`, `photos/page.tsx`, `videos/page.tsx`, `albums/page.tsx`, `albums/[slug]/page.tsx`
 
@@ -148,7 +148,7 @@ When editing an area, limit changes to these files:
 | Albums API | `src/app/api/albums/route.ts` |
 | Media endpoints | `src/app/api/media/[id]/{download,preview,thumbnail}/route.ts` |
 | Admin reindex | `src/app/api/admin/reindex/route.ts` |
-| StorageProvider | `src/lib/storage/types.ts`, `localStorageProvider.ts` → **R2 TBD** |
+| Media URL construction | `src/lib/storage/assetUrls.ts` + `src/lib/r2/client.ts` |
 | Import script | `scripts/import-media.ts` |
 | Scripts DB client | `scripts/db.ts` |
 | Deployment guide | **`docs/DEPLOY.md`** |
