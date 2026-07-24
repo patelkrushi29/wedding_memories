@@ -9,6 +9,7 @@ import 'dotenv/config';
 import * as path from 'path';
 import sharp from 'sharp';
 import slugify from 'slugify';
+import exifr from 'exifr';
 import { prisma } from './db';
 import {
   downloadFromR2,
@@ -75,14 +76,14 @@ function posterObjectKey(assetId: string): string {
 
 async function ensurePhotoThumbnail(
   assetId: string,
-  mediaKey: string
+  mediaKey: string,
+  buffer: Buffer
 ): Promise<{ thumbKey: string; created: boolean; width: number | null; height: number | null }> {
   const thumbKey = thumbnailObjectKey(assetId);
   if (await r2ObjectExists(thumbKey)) {
     return { thumbKey, created: false, width: null, height: null };
   }
 
-  const buffer = await downloadFromR2(mediaKey);
   const meta = await sharp(buffer).metadata();
   const thumbBuffer = await sharp(buffer).resize(600).webp({ quality: 80 }).toBuffer();
   await uploadToR2(thumbKey, thumbBuffer, 'image/webp');
@@ -92,6 +93,27 @@ async function ensurePhotoThumbnail(
     width: meta.width ?? null,
     height: meta.height ?? null,
   };
+}
+
+/** Tiny blurred webp as a base64 data URL (~300 bytes) for instant grid placeholders. */
+async function makeBlurDataUrl(buffer: Buffer): Promise<string | null> {
+  try {
+    const tiny = await sharp(buffer).resize(20).webp({ quality: 30 }).toBuffer();
+    return `data:image/webp;base64,${tiny.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Capture date from EXIF (DateTimeOriginal preferred). */
+async function extractTakenAt(buffer: Buffer): Promise<Date | null> {
+  try {
+    const exif = await exifr.parse(buffer, { pick: ['DateTimeOriginal', 'CreateDate'] });
+    const d = exif?.DateTimeOriginal ?? exif?.CreateDate;
+    return d instanceof Date && !isNaN(d.getTime()) ? d : null;
+  } catch {
+    return null;
+  }
 }
 
 async function resolveVideoThumbnail(assetId: string): Promise<{
@@ -210,19 +232,33 @@ async function main() {
         const current = await prisma.asset.findUnique({ where: { id: assetId } });
         let thumbnailPath = current?.thumbnailPath ?? null;
         let posterPath = current?.posterPath ?? null;
+        let blurDataUrl = current?.blurDataUrl ?? null;
+        let takenAt = current?.takenAt ?? null;
 
         const needsThumb =
           !thumbnailPath ||
           !isR2ObjectKey(thumbnailPath) ||
           !(await r2ObjectExists(thumbnailPath));
 
-        if (isPhoto && needsThumb) {
-          const thumb = await ensurePhotoThumbnail(assetId, mediaKey);
-          thumbnailPath = thumb.thumbKey;
-          if (thumb.created) thumbsCreated++;
-          if (thumb.width != null) {
-            width = thumb.width;
-            height = thumb.height;
+        if (isPhoto) {
+          const needsBlur = !blurDataUrl;
+          const needsTakenAt = !takenAt;
+
+          // Download the original once if any derived data is missing
+          if (needsThumb || needsBlur || needsTakenAt) {
+            const buffer = await downloadFromR2(mediaKey);
+
+            if (needsThumb) {
+              const thumb = await ensurePhotoThumbnail(assetId, mediaKey, buffer);
+              thumbnailPath = thumb.thumbKey;
+              if (thumb.created) thumbsCreated++;
+              if (thumb.width != null) {
+                width = thumb.width;
+                height = thumb.height;
+              }
+            }
+            if (needsBlur) blurDataUrl = await makeBlurDataUrl(buffer);
+            if (needsTakenAt) takenAt = await extractTakenAt(buffer);
           }
         } else if (isVideo && needsThumb) {
           const videoThumbs = await resolveVideoThumbnail(assetId);
@@ -241,6 +277,8 @@ async function main() {
             ...(thumbnailPath ? { thumbnailPath } : {}),
             ...(isVideo && posterPath ? { posterPath } : {}),
             ...(width != null && height != null ? { width, height } : {}),
+            ...(blurDataUrl ? { blurDataUrl } : {}),
+            ...(takenAt ? { takenAt } : {}),
           },
         });
       }

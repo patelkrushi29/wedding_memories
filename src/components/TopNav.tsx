@@ -2,92 +2,92 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
-import { Menu, X, Heart } from 'lucide-react';
+import { Heart, Home, CalendarDays, ScanFace, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const navLinks = [
-  { href: '/highlights', label: 'Highlights' },
-  { href: '/photos', label: 'Photos' },
-  { href: '/albums', label: 'Albums' },
-  { href: '/videos', label: 'Videos' },
-  { href: '/selected', label: 'Selected' },
-  { href: '/find-yourself', label: 'Find Yourself', disabled: true },
+const tabs = [
+  { href: '/', label: 'Feed', icon: Home },
+  { href: '/photos', label: 'Photos', icon: ImageIcon },
+  { href: '/events', label: 'Events', icon: CalendarDays },
+  { href: '/find-yourself', label: 'Find Me', icon: ScanFace },
+  { href: '/selected', label: 'Selected', icon: Heart },
 ];
+
+const desktopLinks = [
+  { href: '/', label: 'Feed' },
+  { href: '/photos', label: 'Photos' },
+  { href: '/events', label: 'Events' },
+  { href: '/videos', label: 'Videos' },
+  { href: '/find-yourself', label: 'Find Yourself' },
+  { href: '/selected', label: 'Selected' },
+];
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === '/') return pathname === '/';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function TopNav() {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <Link href="/highlights" className="flex items-center gap-2">
-            <Heart className="h-5 w-5 text-[#c9a96e] fill-[#c9a96e]" />
-            <span className="font-serif text-xl font-semibold text-gray-800">Wedding Memories</span>
-          </Link>
+    <>
+      {/* Top bar: full nav on desktop, brand-only on mobile */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex h-14 md:h-16 items-center justify-between">
+            <Link href="/" className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-[#c9a96e] fill-[#c9a96e]" />
+              <span className="font-serif text-lg md:text-xl font-semibold text-gray-800">
+                Wedding Memories
+              </span>
+            </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.disabled ? '#' : link.href}
-                className={cn(
-                  'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                  link.disabled
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : pathname === link.href
-                    ? 'bg-[#fdf7ef] text-[#c9a96e]'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                )}
-                onClick={(e) => link.disabled && e.preventDefault()}
-                title={link.disabled ? 'Coming soon' : undefined}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-50"
-            onClick={() => setMobileOpen(!mobileOpen)}
-          >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+            <nav className="hidden md:flex items-center gap-1">
+              {desktopLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    isActive(pathname, link.href)
+                      ? 'bg-[#fdf7ef] text-[#c9a96e]'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  )}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* Mobile menu */}
-      {mobileOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white">
-          <nav className="px-4 py-3 flex flex-col gap-1">
-            {navLinks.map((link) => (
+      {/* Bottom tab bar — mobile only */}
+      <nav
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-sm border-t border-gray-200"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="grid grid-cols-5">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = isActive(pathname, tab.href);
+            return (
               <Link
-                key={link.href}
-                href={link.disabled ? '#' : link.href}
+                key={tab.href}
+                href={tab.href}
                 className={cn(
-                  'px-4 py-3 rounded-lg text-sm font-medium transition-colors',
-                  link.disabled
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : pathname === link.href
-                    ? 'bg-[#fdf7ef] text-[#c9a96e]'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  'flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
+                  active ? 'text-[#c9a96e]' : 'text-gray-400 active:text-gray-600'
                 )}
-                onClick={(e) => {
-                  if (link.disabled) e.preventDefault();
-                  else setMobileOpen(false);
-                }}
               >
-                {link.label}
-                {link.disabled && <span className="ml-2 text-xs text-gray-400">(coming soon)</span>}
+                <Icon className={cn('h-5 w-5', active && 'fill-[#fdf7ef]')} strokeWidth={active ? 2.4 : 2} />
+                {tab.label}
               </Link>
-            ))}
-          </nav>
+            );
+          })}
         </div>
-      )}
-    </header>
+      </nav>
+    </>
   );
 }

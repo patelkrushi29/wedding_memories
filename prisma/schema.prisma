@@ -44,8 +44,10 @@ model Asset {
   isHighlight    Boolean   @default(false)
   isAvailable    Boolean   @default(true)
   checksum       String?
+  blurDataUrl    String?   // tiny base64 placeholder for instant grid rendering
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  tags           AssetTag[]
 
   @@index([type])
   @@index([albumId])
@@ -86,4 +88,35 @@ model FutureFaceMatch {
   externalFaceId  String?
   isApproved      Boolean  @default(false)
   createdAt       DateTime @default(now())
+}
+
+// Tags organize assets across albums: events, locations, people (faces), auto-clusters.
+model Tag {
+  id           String     @id @default(cuid())
+  kind         String     // "EVENT" | "LOCATION" | "PERSON" | "AUTO"
+  name         String
+  slug         String     @unique
+  coverAssetId String?
+  isVisible    Boolean    @default(true)
+  sortOrder    Int        @default(0)
+  startAt      DateTime?  // time range for EVENT tags (from clustering)
+  endAt        DateTime?
+  source       String?    // "manual" | "time-cluster" | "clip-cluster" | "face"
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  assets       AssetTag[]
+
+  @@index([kind])
+  @@index([isVisible])
+}
+
+model AssetTag {
+  assetId   String
+  tagId     String
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([assetId, tagId])
+  @@index([tagId])
 }

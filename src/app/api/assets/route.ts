@@ -7,11 +7,13 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
   const albumSlug = searchParams.get('album');
+  const eventSlug = searchParams.get('event');
   const search = searchParams.get('search');
   const sort = searchParams.get('sort') || 'newest';
   const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1);
   const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '60') || 60));
   const ids = searchParams.get('ids');
+  const cursor = searchParams.get('cursor');
   const skip = (page - 1) * limit;
 
   const where: Prisma.AssetWhereInput = {
@@ -31,37 +33,48 @@ export async function GET(request: NextRequest) {
     if (album) where.albumId = album.id;
   }
 
-  let orderBy: Prisma.AssetOrderByWithRelationInput = {};
+  if (eventSlug) {
+    where.tags = { some: { tag: { slug: eventSlug, isVisible: true } } };
+  }
+
+  // Stable ordering: takenAt (nulls last), then id as tiebreaker so cursoring is deterministic
+  let orderBy: Prisma.AssetOrderByWithRelationInput[];
   switch (sort) {
     case 'oldest':
-      orderBy = { takenAt: 'asc' };
+      orderBy = [{ takenAt: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }];
       break;
     case 'album':
-      orderBy = { albumId: 'asc' };
+      orderBy = [{ albumId: 'asc' }, { id: 'asc' }];
       break;
     case 'filename':
-      orderBy = { filename: 'asc' };
+      orderBy = [{ filename: 'asc' }, { id: 'asc' }];
       break;
     default:
-      orderBy = { takenAt: 'desc' };
+      orderBy = [{ takenAt: { sort: 'desc', nulls: 'last' } }, { id: 'asc' }];
   }
+
+  const useCursor = Boolean(cursor);
 
   const [items, total] = await Promise.all([
     prisma.asset.findMany({
       where,
       orderBy,
-      skip,
       take: limit,
+      ...(useCursor ? { cursor: { id: cursor! }, skip: 1 } : { skip }),
       include: { album: { select: { title: true, slug: true } } },
     }),
     prisma.asset.count({ where }),
   ]);
+
+  const nextCursor = items.length === limit ? items[items.length - 1].id : null;
+  const hasMore = useCursor ? nextCursor !== null : skip + items.length < total;
 
   return NextResponse.json({
     items: items.map((asset) => attachMediaUrls(asset)),
     page,
     limit,
     total,
-    hasMore: skip + items.length < total,
+    hasMore,
+    nextCursor,
   });
 }

@@ -7,18 +7,7 @@ import { MediaViewerModal } from '@/components/MediaViewerModal';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingGrid } from '@/components/LoadingGrid';
 import { Button } from '@/components/ui/button';
-
-interface Asset {
-  id: string;
-  type: string;
-  filename: string;
-  thumbnailUrl: string;
-  previewUrl: string;
-  downloadUrl: string;
-  fileSizeBytes: number;
-  durationSeconds?: number | null;
-  album?: { title: string; slug: string } | null;
-}
+import type { Asset } from '@/types/asset';
 
 export default function VideosPage() {
   const [assets, setAssets] = useState<Asset[]>([]);

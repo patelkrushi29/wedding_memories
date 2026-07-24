@@ -2,7 +2,7 @@
 
 **Purpose:** Start every new Claude Code session by reading this file + CLAUDE.md. This tells you exactly what's done, what's next, and what to work on.
 
-**Last updated:** 2026-05-30, Session 2 — unified on `main` branch (`259e2bb` baseline)
+**Last updated:** 2026-07-23 — Phase A (mobile-first) + Phase B (events/tags) shipped; cloud stack live on Vercel
 
 ---
 
@@ -43,6 +43,11 @@
 | Bug fix: originalPath in API responses | 2026-05-30 | Stripped from guest JSON |
 | Windows DB URL fix | 2026-05-30 | `pathToFileURL()` in db.ts (SQLite dev only) |
 | Production docs + cloud-first plan | 2026-05-30 | `docs/DEPLOY.md`, PLAN/ROADMAP/STORAGE/AUTH updated |
+| C1–C3: Postgres (Supabase) + R2 provider + sync pipeline | 2026-06 | Live on Vercel |
+| C6: Vercel deploy (pooler DATABASE_URL — direct host is IPv6-only) | 2026-07-23 | wedding-memories-sage.vercel.app |
+| Cleanup: dead code, stale branch, unused deps; S3/S4/S6 fixed | 2026-07-23 | Commit `97f4ad1` |
+| **Phase A: mobile-first** — bottom tab bar, feed home (`/`), swipeable viewer, infinite scroll + cursor pagination, blur placeholders, EXIF takenAt in sync | 2026-07-23 | S2 shared types included |
+| **Phase B: events/tags** — Tag/AssetTag schema, `npm run cluster:events` (time-gap), admin naming/publish UI, `/events` page, filter chips, `?event=` filtering | 2026-07-23 | CLIP clustering + faces are next phases |
 
 ---
 

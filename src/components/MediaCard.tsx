@@ -2,15 +2,7 @@
 
 import { Download } from 'lucide-react';
 import { FavoriteButton } from './FavoriteButton';
-
-interface Asset {
-  id: string;
-  filename: string;
-  thumbnailUrl: string;
-  downloadUrl: string;
-  width?: number | null;
-  height?: number | null;
-}
+import type { Asset } from '@/types/asset';
 
 interface MediaCardProps {
   asset: Asset;
@@ -22,6 +14,11 @@ export function MediaCard({ asset, onClick }: MediaCardProps) {
     <div
       className="group relative rounded-xl overflow-hidden bg-gray-100 cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 aspect-square"
       onClick={onClick}
+      style={
+        asset.blurDataUrl
+          ? { backgroundImage: `url(${asset.blurDataUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+          : undefined
+      }
     >
       <img
         src={asset.thumbnailUrl}

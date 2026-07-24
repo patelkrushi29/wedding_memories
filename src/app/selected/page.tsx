@@ -7,21 +7,9 @@ import { MediaViewerModal } from '@/components/MediaViewerModal';
 import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Heart, Trash2, Download } from 'lucide-react';
+import type { Asset } from '@/types/asset';
 
 const STORAGE_KEY = 'wedding-gallery-selected-assets';
-
-interface Asset {
-  id: string;
-  type: string;
-  filename: string;
-  thumbnailUrl: string;
-  previewUrl: string;
-  downloadUrl: string;
-  fileSizeBytes: number;
-  width?: number | null;
-  height?: number | null;
-  album?: { title: string; slug: string } | null;
-}
 
 export default function SelectedPage() {
   const [assets, setAssets] = useState<Asset[]>([]);

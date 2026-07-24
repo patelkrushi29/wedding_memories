@@ -3,16 +3,7 @@
 import { Play, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatDuration, formatBytes } from '@/lib/utils';
-
-interface Asset {
-  id: string;
-  filename: string;
-  thumbnailUrl: string;
-  downloadUrl: string;
-  durationSeconds?: number | null;
-  fileSizeBytes: number;
-  album?: { title: string; slug: string } | null;
-}
+import type { Asset } from '@/types/asset';
 
 interface VideoCardProps {
   asset: Asset;

@@ -52,3 +52,19 @@ html {
   margin-bottom: 12px;
   display: block;
 }
+
+/* Hide scrollbars on horizontal chip/strip rows */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Room for the fixed bottom tab bar on mobile */
+@media (max-width: 767px) {
+  main {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}
+

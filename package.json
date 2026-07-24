@@ -12,6 +12,7 @@
     "db:studio": "prisma studio",
     "import:media": "tsx scripts/import-media.ts",
     "sync:r2": "tsx scripts/sync-r2-media.ts",
+    "cluster:events": "tsx scripts/cluster-events.ts",
     "test:db": "tsx scripts/test-db-connection.ts"
   },
   "dependencies": {
