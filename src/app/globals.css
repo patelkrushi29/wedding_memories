@@ -13,6 +13,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
+  /* Let our custom pull-to-refresh own the overscroll gesture */
+  overscroll-behavior-y: contain;
 }
 
 * {

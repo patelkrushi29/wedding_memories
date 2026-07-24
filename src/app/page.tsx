@@ -5,6 +5,7 @@ import { TopNav } from '@/components/TopNav';
 import { FeedSection } from '@/components/FeedSection';
 import { HighlightsStrip } from '@/components/HighlightsStrip';
 import { RecentGrid } from '@/components/RecentGrid';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { getFeedSections, getHighlights, getRecentPhotos } from '@/lib/tags/queries';
 import { ChevronRight } from 'lucide-react';
 
@@ -16,6 +17,7 @@ export default async function FeedPage() {
     <div className="min-h-screen bg-[#faf9f6]">
       <TopNav />
       <main className="max-w-3xl mx-auto px-0 sm:px-6 py-3 sm:py-8">
+        <PullToRefresh>
         <HighlightsStrip assets={JSON.parse(JSON.stringify(highlights))} />
 
         {sections.map(({ tag, assets }) => (
@@ -49,6 +51,7 @@ export default async function FeedPage() {
             )}
           </section>
         )}
+        </PullToRefresh>
       </main>
     </div>
   );

@@ -17,6 +17,21 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Wedding Memories',
   description: 'Your beautiful wedding gallery',
+  appleWebApp: {
+    capable: true,
+    title: 'Memories',
+    statusBarStyle: 'default',
+  },
+  icons: {
+    apple: '/apple-touch-icon.png',
+  },
+};
+
+export const viewport = {
+  themeColor: '#faf9f6',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover' as const,
 };
 
 export default function RootLayout({
