@@ -3,19 +3,20 @@ import { prisma } from '@/lib/db';
 import { thumbnailUrlFor } from '@/lib/storage/assetUrls';
 import { isAdminAuthorized } from '@/lib/adminAuth';
 
-/** All EVENT tags (including hidden candidates) with counts and sample thumbnails. */
+/** All functions (including unpublished candidates), grouped under their day. */
 export async function GET(request: NextRequest) {
   if (!isAdminAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const tags = await prisma.tag.findMany({
-    where: { kind: 'EVENT' },
+  const functions = await prisma.tag.findMany({
+    where: { kind: 'FUNCTION' },
     orderBy: [{ startAt: 'asc' }, { createdAt: 'asc' }],
+    include: { parent: true },
   });
 
   const result = [];
-  for (const tag of tags) {
+  for (const tag of functions) {
     const [count, samples] = await Promise.all([
       prisma.assetTag.count({ where: { tagId: tag.id } }),
       prisma.assetTag.findMany({
@@ -36,6 +37,8 @@ export async function GET(request: NextRequest) {
       source: tag.source,
       startAt: tag.startAt,
       endAt: tag.endAt,
+      dayName: tag.parent?.name ?? null,
+      daySlug: tag.parent?.slug ?? null,
       assetCount: count,
       sampleThumbnails: samples.map((s) => thumbnailUrlFor(s.asset)),
     });

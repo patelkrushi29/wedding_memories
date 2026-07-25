@@ -37,6 +37,7 @@ model Asset {
   height         Int?
   durationSeconds Float?
   thumbnailPath  String?
+  viewerPath     String?   // mid-tier render for the viewer; originals stay behind zoom/download
   posterPath     String?
   takenAt        DateTime?
   modifiedAt     DateTime
@@ -45,6 +46,8 @@ model Asset {
   isAvailable    Boolean   @default(true)
   checksum       String?
   blurDataUrl    String?   // tiny base64 placeholder for instant grid rendering
+  source         String?   // "pro" | "guest" — drives the "who shot it" facet
+  uploaderName   String?   // display name for attribution ("shot by Rohit")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   tags           AssetTag[]
@@ -90,16 +93,21 @@ model FutureFaceMatch {
   createdAt       DateTime @default(now())
 }
 
-// Tags organize assets across albums: events, locations, people (faces), auto-clusters.
+// Tags organize assets: DAY contains FUNCTION (the spine), plus derived facets.
+// kind: "DAY" | "FUNCTION" | "MOMENT" | "PERSON" | "OBJECT" | "LOCATION"
+// DAY tags carry no AssetTag rows — their counts roll up from child functions.
 model Tag {
   id           String     @id @default(cuid())
-  kind         String     // "EVENT" | "LOCATION" | "PERSON" | "AUTO"
+  kind         String
   name         String
   slug         String     @unique
+  parentId     String?
+  parent       Tag?       @relation("TagHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Tag[]      @relation("TagHierarchy")
   coverAssetId String?
   isVisible    Boolean    @default(true)
   sortOrder    Int        @default(0)
-  startAt      DateTime?  // time range for EVENT tags (from clustering)
+  startAt      DateTime?  // time span, from clustering
   endAt        DateTime?
   source       String?    // "manual" | "time-cluster" | "clip-cluster" | "face"
   createdAt    DateTime   @default(now())
@@ -108,6 +116,7 @@ model Tag {
 
   @@index([kind])
   @@index([isVisible])
+  @@index([parentId])
 }
 
 model AssetTag {

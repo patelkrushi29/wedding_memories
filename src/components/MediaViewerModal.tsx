@@ -3,7 +3,6 @@
 import { useEffect, useLayoutEffect, useCallback, useRef, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { FavoriteButton } from './FavoriteButton';
-import { Badge } from '@/components/ui/badge';
 import { formatBytes } from '@/lib/utils';
 import type { Asset } from '@/types/asset';
 
@@ -209,36 +208,37 @@ export function MediaViewerModal({
       >
         {/* Top bar */}
         <div
-          className={`absolute sm:relative top-0 inset-x-0 z-10 flex items-center justify-between p-3 sm:p-0 sm:mb-3 text-white transition-opacity duration-200 bg-gradient-to-b from-black/60 to-transparent sm:bg-none ${
+          className={`absolute sm:relative top-0 inset-x-0 z-10 flex items-center justify-between p-3 sm:p-0 sm:mb-3 text-paper transition-opacity duration-200 bg-gradient-to-b from-black/70 to-transparent sm:bg-none ${
             chromeVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
           style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="font-medium text-sm truncate max-w-[40vw] sm:max-w-xs">{asset.filename}</span>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="numeral truncate text-ash">{asset.filename}</span>
             {asset.album && (
-              <Badge variant="secondary" className="hidden sm:inline-flex text-xs bg-white/10 text-white border-0">
-                {asset.album.title}
-              </Badge>
+              <span className="mono hidden sm:inline text-dim">{asset.album.title}</span>
             )}
-            <span className="hidden sm:inline text-xs text-white/50">{formatBytes(asset.fileSizeBytes)}</span>
+            <span className="numeral hidden text-dim sm:inline">
+              {formatBytes(asset.fileSizeBytes)}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <FavoriteButton assetId={asset.id} />
             <a
               href={asset.downloadUrl}
               download
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+              className="rounded-full bg-white/10 p-2 text-paper transition-colors hover:bg-white/20"
               title="Download"
               onClick={(e) => e.stopPropagation()}
             >
-              <Download className="h-5 w-5" />
+              <Download className="h-5 w-5" strokeWidth={1.7} />
             </a>
             <button
               onClick={onClose}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              className="rounded-full bg-white/10 p-2 transition-colors hover:bg-white/20"
+              title="Close"
             >
-              <X className="h-5 w-5 text-white" />
+              <X className="h-5 w-5 text-paper" strokeWidth={1.7} />
             </button>
           </div>
         </div>
@@ -290,7 +290,7 @@ export function MediaViewerModal({
           {hasPrev && onPrev && (
             <button
               onClick={() => animateTo('prev')}
-              className={`hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-all ${
+              className={`hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/60 text-paper transition-all ${
                 chromeVisible ? 'opacity-100' : 'opacity-0'
               }`}
             >
@@ -300,7 +300,7 @@ export function MediaViewerModal({
           {hasNext && onNext && (
             <button
               onClick={() => animateTo('next')}
-              className={`hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-all ${
+              className={`hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/60 text-paper transition-all ${
                 chromeVisible ? 'opacity-100' : 'opacity-0'
               }`}
             >

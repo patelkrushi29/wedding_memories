@@ -4,7 +4,7 @@ globs: src/components/**/*.tsx
 
 # Rules for Components
 
-**Full docs:** `docs/COMPONENTS.md` · **Types:** `src/types/asset.ts` when S2 lands
+**Design source:** the Darkroom round-2 frames · **Types:** `src/types/asset.ts`
 
 You are editing a React component. These rules apply to all files in `src/components/`.
 
@@ -15,33 +15,55 @@ You are editing a React component. These rules apply to all files in `src/compon
 ## Props and Types
 - Always define a Props interface above the component.
 - Do NOT define an `Asset` interface locally — import from `src/types/asset.ts`.
-```ts
-import type { Asset } from '@/types/asset';
+
+## Design tokens — Darkroom (dark). Never use raw hex, never the old gold.
+```css
+--ink #15100D      /* page background */
+--pitch #0C0907    /* deepest black */
+--plate #1F1815    /* cards, panels, inputs */
+--veil #2E2622     /* hairlines, borders */
+--paper #F6EFE6    /* primary text */
+--ash #A39287      /* secondary text */
+--dim #6E625B      /* tertiary text, mono labels */
+--halide #7ECFC2   /* the only accent (silver halide) */
+--halide-d #2A4B47 /* accent fill */
 ```
+Tailwind equivalents: `bg-ink bg-plate border-veil text-paper text-ash text-dim text-halide bg-halide-deep`.
 
-## Media URLs
-- Never construct media URLs in components. They come from the API response.
-- Use `asset.thumbnailUrl`, `asset.previewUrl`, `asset.downloadUrl` — never `/api/media/${id}/...`.
+## Type roles — three fonts, three jobs
+| Class | Font | Used for |
+|---|---|---|
+| `.display` | Newsreader 300, italic for emphasis | Headings, function names. Never bold. |
+| default (`font-sans`) | Instrument Sans | Body, buttons, inputs |
+| `.mono` | IBM Plex Mono, uppercase, `.16em` tracking | Eyebrows, labels, "3 days · 5 functions" |
+| `.numeral` | IBM Plex Mono, no uppercase | Counts, timecodes, filenames |
 
-## Images
-- Always use `<img>` with `loading="lazy"` for gallery grids, not `next/image` (masonry layout incompatible).
-- In lightbox/viewer: `<img>` with eager loading is fine.
+`.mono-on` turns a mono label halide. Use sparingly — it means "this is live/yours".
+
+## Photographic texture
+- `.grain` on a positioned parent adds film grain over imagery.
+- `.sprockets` adds filmstrip rails to a horizontal strip.
+- `.scrim-b` / `.scrim-t` for text legibility over photos.
+- `.chip` / `.chip-on` for filter chips.
+
+## Images — three tiers, never mix them up
+- Grids: `asset.thumbnailUrl` with `loading="lazy"`. Never `next/image`.
+- Viewer: `asset.previewUrl` (mid-size render, ~1600px).
+- Full resolution: `asset.fullUrl` — only on a deliberate zoom or download.
+- Always render `asset.blurDataUrl` as a background so nothing pops in white.
 
 ## Videos
-- Always use `preload="metadata"` — never `preload="auto"`.
+- `preload="metadata"` — never `auto`.
+- Video is a **filter inside a function**, never its own tab or page.
 
-## Favorites / Selected
-- localStorage key: `wedding-gallery-selected-assets`
-- Managed in `src/components/FavoriteButton.tsx` — don't duplicate this logic.
+## Saved (the heart)
+- localStorage key: `wedding-gallery-selected-assets`, managed in `FavoriteButton.tsx`.
+- It is a **private** marker: no counts, nothing shown to other guests, no server record.
 
-## Design tokens (use these, never raw colors)
-```css
-var(--background)   /* #faf9f6 warm white */
-var(--foreground)   /* #2d2d2d near-black */
-var(--gold)         /* #c9a96e gold accent */
-var(--gold-light)   /* #fdf7ef gold tint */
-```
+## Reusable surfaces
+- `MediaGrid` — paginated grid + in-place viewer. Use it for any collection.
+- `MediaCard` — bare thumbnail, no hover chrome (save/download live in the viewer).
+- `AppShell` — page chrome (desktop nav + mobile tab bar). Pages own their headers.
 
 ## Tailwind
-- Use Tailwind v3 class names only. No v4-specific syntax.
-- Use `font-serif` for headings, `font-sans` for body.
+Tailwind v3 only. No v4-specific syntax.

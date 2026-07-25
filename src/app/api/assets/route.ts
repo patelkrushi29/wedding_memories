@@ -7,7 +7,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
   const albumSlug = searchParams.get('album');
-  const eventSlug = searchParams.get('event');
+  // "function" is the current name; "event" kept for older links
+  const tagSlug = searchParams.get('function') || searchParams.get('event');
   const search = searchParams.get('search');
   const sort = searchParams.get('sort') || 'newest';
   const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1);
@@ -33,8 +34,8 @@ export async function GET(request: NextRequest) {
     if (album) where.albumId = album.id;
   }
 
-  if (eventSlug) {
-    where.tags = { some: { tag: { slug: eventSlug, isVisible: true } } };
+  if (tagSlug) {
+    where.tags = { some: { tag: { slug: tagSlug, isVisible: true } } };
   }
 
   // Stable ordering: takenAt (nulls last), then id as tiebreaker so cursoring is deterministic

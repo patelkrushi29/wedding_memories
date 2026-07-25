@@ -1,26 +1,36 @@
 import type { Metadata } from 'next';
-import { Playfair_Display, Inter } from 'next/font/google';
+import { Newsreader, Instrument_Sans, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 
-const playfair = Playfair_Display({
+const newsreader = Newsreader({
   subsets: ['latin'],
+  weight: ['300', '400'],
+  style: ['normal', 'italic'],
   variable: '--font-serif',
   display: 'swap',
 });
 
-const inter = Inter({
+const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
+  weight: ['400', '500', '600'],
   variable: '--font-sans',
+  display: 'swap',
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-mono',
   display: 'swap',
 });
 
 export const metadata: Metadata = {
   title: 'Wedding Memories',
-  description: 'Your beautiful wedding gallery',
+  description: 'Our wedding photographs and film',
   appleWebApp: {
     capable: true,
     title: 'Memories',
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
   },
   icons: {
     apple: '/apple-touch-icon.png',
@@ -28,7 +38,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: '#faf9f6',
+  themeColor: '#15100D',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover' as const,
@@ -40,8 +50,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`h-full ${playfair.variable} ${inter.variable}`}>
-      <body className="min-h-full bg-[#faf9f6] font-sans">{children}</body>
+    <html
+      lang="en"
+      className={`h-full ${newsreader.variable} ${instrumentSans.variable} ${plexMono.variable}`}
+    >
+      <body className="min-h-full bg-ink font-sans text-paper">{children}</body>
     </html>
   );
 }

@@ -44,17 +44,20 @@ export function FavoriteButton({
     <button
       onClick={toggle}
       className={cn(
-        'rounded-full transition-all duration-200',
+        'rounded-full transition-colors',
         size === 'sm' ? 'p-1' : 'p-2',
         selected
-          ? 'text-red-500 bg-red-50 hover:bg-red-100'
-          : 'text-white/80 hover:text-red-400 bg-black/20 hover:bg-black/30',
+          ? 'bg-halide-deep text-halide'
+          : 'bg-white/10 text-paper/80 hover:bg-white/20 hover:text-paper',
         className
       )}
-      title={selected ? 'Remove from selected' : 'Add to selected'}
+      title={selected ? 'Remove from saved' : 'Save'}
+      aria-pressed={selected}
     >
       <Heart
-        className={cn(size === 'sm' ? 'h-4 w-4' : 'h-5 w-5', selected && 'fill-current')}
+        className={cn(size === 'sm' ? 'h-4 w-4' : 'h-5 w-5')}
+        fill={selected ? 'currentColor' : 'none'}
+        strokeWidth={1.7}
       />
     </button>
   );

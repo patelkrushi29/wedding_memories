@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listEventTags } from '@/lib/tags/queries';
+import { listFunctions } from '@/lib/tags/queries';
 
+/** Published functions, for chips and facet lists. */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const kind = (searchParams.get('kind') || 'EVENT').toUpperCase();
+  const kind = (searchParams.get('kind') || 'FUNCTION').toUpperCase();
 
-  if (kind !== 'EVENT') {
-    return NextResponse.json({ error: 'Only kind=EVENT is supported for now' }, { status: 400 });
+  if (kind !== 'FUNCTION' && kind !== 'EVENT') {
+    return NextResponse.json({ error: 'Only kind=FUNCTION is supported' }, { status: 400 });
   }
 
-  const tags = await listEventTags();
-  return NextResponse.json(tags.filter((t) => t.assetCount > 0));
+  return NextResponse.json(await listFunctions());
 }

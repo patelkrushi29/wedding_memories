@@ -4,6 +4,7 @@ type AssetForUrls = {
   id: string;
   filename: string;
   thumbnailPath: string | null;
+  viewerPath?: string | null;
   posterPath: string | null;
   originalPath: string;
 };
@@ -50,20 +51,30 @@ export function thumbnailUrlFor(asset: {
   }).thumbnailUrl;
 }
 
+/**
+ * Attach delivery URLs and strip internal keys.
+ *
+ * Three tiers, per the delivery notes: `thumbnailUrl` for grids, `previewUrl`
+ * for the viewer (mid-size render — never the original), and `fullUrl` for a
+ * deliberate full-resolution fetch (pinch-zoom, download).
+ */
 export function attachMediaUrls<T extends AssetForUrls>(
   asset: T
-): Omit<T, 'originalPath' | 'thumbnailPath' | 'posterPath'> & {
+): Omit<T, 'originalPath' | 'thumbnailPath' | 'posterPath' | 'viewerPath'> & {
   thumbnailUrl: string;
   previewUrl: string;
+  fullUrl: string;
   downloadUrl: string;
 } {
-  const { originalPath, thumbnailPath, posterPath, ...rest } = asset;
+  const { originalPath, thumbnailPath, posterPath, viewerPath, ...rest } = asset;
   const thumbKey = thumbnailPath ?? posterPath;
 
   return {
     ...rest,
     thumbnailUrl: resolveMediaUrl(thumbKey, asset.id, 'thumbnail'),
-    previewUrl: resolveMediaUrl(originalPath, asset.id, 'preview'),
+    // Videos have no viewer render — they stream from the original.
+    previewUrl: resolveMediaUrl(viewerPath ?? originalPath, asset.id, 'preview'),
+    fullUrl: resolveMediaUrl(originalPath, asset.id, 'preview'),
     downloadUrl: resolveMediaUrl(originalPath, asset.id, 'download'),
   };
 }

@@ -2,22 +2,19 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, Eye, EyeOff } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [show, setShow] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
       const res = await fetch('/api/auth/guest-password', {
         method: 'POST',
@@ -25,74 +22,70 @@ export default function AuthPage() {
         body: JSON.stringify({ password }),
       });
       const data = await res.json();
-
       if (data.ok) {
-        router.push('/highlights');
+        router.push('/');
         router.refresh();
       } else {
-        setError('Incorrect password. Please try again.');
+        setError('That password does not match.');
       }
     } catch {
-      setError('Something went wrong. Please try again.');
+      setError('Something went wrong. Try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 sm:p-10">
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 rounded-full bg-[#fdf7ef] flex items-center justify-center mb-4">
-              <Heart className="h-8 w-8 text-[#c9a96e] fill-[#c9a96e]" />
-            </div>
-            <h1 className="font-serif text-3xl font-semibold text-gray-800 text-center">
-              Wedding Memories
-            </h1>
-            <p className="text-gray-500 text-sm mt-2 text-center">
-              Enter the wedding gallery password
-            </p>
+    <div className="flex min-h-screen items-center justify-center bg-ink px-6">
+      <div className="w-full max-w-sm">
+        {/* Aperture mark */}
+        <div className="mb-9 flex justify-center">
+          <div className="relative flex h-14 w-14 items-center justify-center rounded-full border border-halide/60">
+            <div className="h-3.5 w-3.5 rounded-full bg-halide" />
+          </div>
+        </div>
+
+        <h1 className="display text-center text-[30px]">
+          Come and <em>look</em>
+        </h1>
+        <p className="mono mt-3 text-center">Enter the password you were given</p>
+
+        <form onSubmit={handleSubmit} className="mt-9">
+          <div className="relative">
+            <input
+              type={show ? 'text' : 'password'}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoFocus
+              className="h-[54px] w-full rounded-card border border-veil bg-plate px-4 pr-11 text-[15px] text-paper placeholder:text-dim focus:border-halide focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShow(!show)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dim hover:text-ash"
+              aria-label={show ? 'Hide password' : 'Show password'}
+            >
+              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pr-10"
-                autoFocus
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+          {error && <p className="mono mt-3 text-center text-[#E08A6A]">{error}</p>}
 
-            {error && (
-              <p className="text-red-500 text-sm text-center">{error}</p>
-            )}
+          <button
+            type="submit"
+            disabled={loading || !password}
+            className="mt-3.5 flex h-[54px] w-full items-center justify-center rounded-card bg-paper text-[15px] font-semibold text-ink transition-opacity disabled:opacity-40"
+          >
+            {loading ? 'Opening…' : 'Open the gallery'}
+          </button>
+        </form>
 
-            <Button
-              type="submit"
-              disabled={loading || !password}
-              className="w-full"
-              size="lg"
-            >
-              {loading ? 'Entering...' : 'Enter Gallery'}
-            </Button>
-          </form>
-
-          <p className="text-center text-xs text-gray-400 mt-6">
-            This gallery is private and password protected
-          </p>
-        </div>
+        <p className="mono mt-8 text-center leading-relaxed">
+          Private gallery
+          <br />
+          Nothing here is public
+        </p>
       </div>
     </div>
   );

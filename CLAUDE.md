@@ -1,179 +1,136 @@
 # Wedding Memories — Claude Code Operating Manual
 
-A password-gated wedding photo/video gallery. **Target production:** Next.js on Vercel, **PostgreSQL** (Supabase/Neon), **Cloudflare R2** + CDN. Owner imports media; guests browse only.
+A private, password-gated wedding gallery. **Live:** Next.js on Vercel + **Supabase Postgres** +
+**Cloudflare R2**. The couple imports the media; guests browse.
 
-**Current version:** 0.1 (app MVP built; **cloud stack not wired in code yet**)
-
-**Go live:** Read `docs/DEPLOY.md` first. **Do not** plan on SQLite → Postgres migration; new DB/storage work targets **Postgres + R2 from day one**.
-
----
-
-## How to use this documentation
-
-This file is the entry point. Read it fully on every session. Then load ONLY the doc file relevant to your task.
-
-### For session handoff (start here if new session)
-| Need | Read |
-|---|---|
-| What's done, what's next, pick a task | `docs/TASKS.md` |
-| Chronological history of all work | `docs/CHANGELOG.md` |
-
-### For understanding and planning
-| Need | Read |
-|---|---|
-| Full gap analysis and phase plan | `docs/PLAN.md` |
-| **Going live (accounts, R2, Postgres, domain)** | **`docs/DEPLOY.md`** |
-| Why something was built this way | `docs/DECISIONS.md` |
-| Full directory map and data flow | `docs/ARCHITECTURE.md` |
-| What's planned long-term | `docs/ROADMAP.md` |
-
-### For implementation
-| Task | Read |
-|---|---|
-| Adding a page, component, or API route | `docs/WORKFLOWS.md` → the specific recipe |
-| Code patterns and naming rules | `docs/CONVENTIONS.md` |
-| DB schema, Prisma setup, migrations | `docs/DATABASE.md` |
-| Auth, cookies, proxy | `docs/AUTH.md` |
-| Import script, folders, thumbnails | `docs/MEDIA-IMPORT.md` |
-| API routes, params, responses | `docs/API.md` |
-| Pages and components, props, state | `docs/COMPONENTS.md` |
-| StorageProvider interface | `docs/STORAGE.md` |
-
-### For verification
-| Need | Read |
-|---|---|
-| How to test a change | `docs/TESTING.md` → relevant checklist |
-| Version milestone checklist | `docs/WORKFLOWS.md` → "Preparing for a version milestone" |
-
-### Claude Code layout (`.claude/`)
-| Path | Purpose |
-|---|---|
-| `.claude/rules/` | Short rules when editing `api/`, `components/`, `prisma/`, `scripts/` |
-| `.claude/skills/` | `import-media`, `smoke-test` |
-| `.claude/commands/` | `/status`, `/test`, `/import`, `/ship`, etc. |
-| `.claude/hooks/` | SessionStart, PreCompact, PostToolUse |
-| `CLAUDE.local.md` | Personal overrides (gitignored) |
-| `mcp.json` | MCP servers (empty by default) |
+**Current version:** 0.3 — cloud stack live, Darkroom redesign, day → function spine.
 
 ---
 
-## Critical rules (always apply)
+## Product decisions that shape everything
+
+Settled 2026-07-25 with the owner. Do not quietly reverse these.
+
+| Decision | Consequence |
+|---|---|
+| **One wedding, product quality** | Single-tenant schema (no Wedding root entity, no host accounts) but the design and polish are held to product standard. |
+| **No feed, no comments, no like counts, no profiles** | The heart is a *private* save marker on the visitor's own device. Nothing a guest does is broadcast to another guest. |
+| **Face wall before selfie** | Guests find themselves by tapping a face, which needs no biometric consent. A selfie is the escape hatch, never the toll gate. |
+| **"That's me" claiming** | A visitor taps their own face once; it lives in localStorage. That is the entire identity model — it unlocks "N of you" counters and the per-guest recap. |
+| **Guest uploads deferred** | No "Add" tab yet. Browsing, faces, and facets first. |
+| **Outfits in the pipeline, never in the UI** | Clothing embeddings help re-identify people across days and detect function boundaries. There is no "red lehenga" filter. |
+
+---
+
+## Information architecture
+
+Three tabs. **Days contain functions** — that hierarchy is the spine of the app.
+
+```
+/                     The days   — day headings, function cards weighted by photo count
+/functions/[slug]     One function — grid + photo/film lanes, in-place viewer
+/people               The face wall (awaiting the face pipeline)
+/saved                Private saves, this device only
+/auth                 Password gate
+/admin                Host: name and publish functions
+```
+
+Video is a **filter inside a function**, never its own tab. There is no albums page, no
+highlights page, no feed — those were removed in the redesign.
+
+---
+
+## Design system — "Darkroom"
+
+Dark, photographic, one accent. Full token list and type roles: `.claude/rules/components.md`.
+
+- Surfaces `--ink #15100D` → `--plate #1F1815`, hairlines `--veil #2E2622`
+- Text `--paper #F6EFE6` → `--ash #A39287` → `--dim #6E625B`
+- Accent `--halide #7ECFC2` only (the old gold `#c9a96e` is gone)
+- **Newsreader** 300/italic for display, **Instrument Sans** for UI, **IBM Plex Mono** uppercase
+  for labels and counts
+- Film grain over imagery (`.grain`), sprocket rails on strips (`.sprockets`)
+
+---
+
+## Critical rules
 
 ### Security
-- **Never accept raw file paths from the client** — only asset IDs. Server resolves paths/keys from DB.
-- **Never expose `asset.originalPath`** (or R2 internal keys) in any API response.
-- Auth cookie: `wg-auth=authenticated`, set httpOnly by `POST /api/auth/guest-password`.
-- Production: **family view link** via `FAMILY_VIEW_TOKEN` (see `docs/AUTH.md`, `docs/DEPLOY.md`).
+- Never accept a raw file path from the client — only asset ids. The server resolves keys.
+- Never expose `originalPath` / `thumbnailPath` / `viewerPath` / `posterPath`. Use
+  `attachMediaUrls()`.
+- Auth cookie `wg-auth=authenticated`, httpOnly, Secure in production.
+- Admin routes use `isAdminAuthorized()` and refuse the placeholder secret `change-me`.
 
-### Performance
-- **Never load original images in grids** — thumbnails only (API or CDN URL).
-- **Never query all assets at once** — paginate with `skip`/`take`, default limit 60.
-- **Always include `isHidden: false, isAvailable: true`** in guest-facing queries.
-- Videos use `preload="metadata"` only.
-- **Long videos:** serve from **R2/CDN**, not Vercel API byte-streaming at scale.
+### Delivery
+- **Three image tiers.** Grid → `thumbnailUrl` (600px). Viewer → `previewUrl` (1600px).
+  Full res → `fullUrl`, only on a deliberate zoom or download. Never serve an original to a grid
+  or a swipe.
+- Never query all assets; cursor-paginate, default 60.
+- Always filter `isHidden: false, isAvailable: true`, and `tag.isVisible` for tag queries.
+- Videos `preload="metadata"`, served from R2, never proxied through a serverless function.
 
 ### Data integrity
-- `Asset.type` is a plain String (`"PHOTO"` or `"VIDEO"`). Use enum only after Postgres migration if desired.
-- `media/` and `public/generated/` are gitignored until R2 import is complete.
-- Shared types live in `src/types/` — do NOT define local Asset interfaces in page files.
-- URL construction happens server-side in API routes or StorageProvider, never on the client.
+- Derived R2 keys are `<assetId>`-based. Deleting and re-uploading originals invalidates every
+  thumbnail, viewer render, and row: run `prune-missing` then `sync:r2`.
+- Shared types live in `src/types/` — never redeclare `Asset` in a page.
 
 ---
 
-## Database — target vs current code
+## Known gaps
 
-| | Target (production) | Current code (legacy dev) |
-|--|---------------------|---------------------------|
-| Engine | **PostgreSQL** | SQLite |
-| Connection | `DATABASE_URL` from Supabase/Neon | `file:./dev.db` + libsql adapter |
-| Client | Standard `PrismaClient` | `@prisma/adapter-libsql` in `src/lib/db.ts`, `scripts/db.ts` |
-
-**New work:** implement Postgres per `docs/DEPLOY.md` C1. Do not add features that assume SQLite long-term.
-
-**Prisma 7 (current SQLite path only):** URL in `prisma.config.ts`; libsql needs absolute `file:///` URLs — `pathToFileURL()` in `db.ts`. Scripts import `prisma` from `scripts/db.ts`.
-
-When Postgres lands: remove libsql adapter, update `docs/DATABASE.md`, run `prisma migrate deploy` on cloud DB.
+| # | Gap | Where |
+|---|---|---|
+| 1 | `/api/*` bypasses the password gate — anyone with a URL can read the gallery JSON | `src/proxy.ts` |
+| 2 | Face pipeline not built: `/people` shows a holding state, no "That's me", no "N of you" | `src/lib/people/tiers.ts` has the tiering + threshold ready |
+| 3 | Derived facets absent: group size, objects/scenes, quality culling, sub-moments | needs CLIP + blur/dupe detection |
+| 4 | No bulk download; iOS cannot save to the camera roll from a plain link | needs `navigator.share` + a signed zip |
+| 5 | No error boundaries — a failed fetch reads as an empty gallery | `error.tsx` per route |
+| 6 | `GUEST_PASSWORD` and `ADMIN_REINDEX_SECRET` are still placeholders in Vercel | owner action |
+| 7 | Voice notes, venue wall, post-event nudge, "a year ago today" not started | roadmap |
 
 ---
 
-## Known tech debt
-
-See `docs/PLAN.md` and `docs/TASKS.md`. Highlights:
-
-| # | Issue | Where | How to fix |
-|---|---|---|---|
-| 1 | Asset interface duplicated in 8 files | Pages + MediaCard, VideoCard, MediaViewerModal | `src/types/asset.ts` (S2) |
-| 2 | Admin page 4 API calls | `admin/page.tsx` | `GET /api/admin/stats` (S5) |
-| 3 | No error boundaries | App routes | `error.tsx` (P6) |
-| 4 | No family view link | Auth | C5 in DEPLOY.md |
-| 5 | Admin reindex runs local-only script (broken on Vercel) | `api/admin/reindex/route.ts` | Rework as serverless R2 sync or remove |
-| 6 | `/api/*` routes are unauthenticated (bypass password gate) | `src/proxy.ts` | Check `wg-auth` cookie in guest-facing APIs (C5) |
-
-Resolved 2026-07-23: StorageProvider dead code deleted (S6), albums page uses direct Prisma (S4), photoCount/videoCount fixed (S3), SQLite/local-disk stack replaced by Postgres + R2 (C1–C3).
-
----
-
-## Module boundaries
-
-When editing an area, limit changes to these files:
-
-**Auth:** `src/proxy.ts`, `src/app/api/auth/guest-password/route.ts`, `src/app/auth/page.tsx` (+ future family view route)
-
-**Media serving:** `src/app/api/media/[id]/download/route.ts`, `preview/route.ts`, `thumbnail/route.ts` (shrink when R2 CDN URLs used in UI)
-
-**Import pipeline:** `scripts/sync-r2-media.ts` (R2 → DB, primary), `scripts/import-media.ts` (optional local staging), `scripts/db.ts`
-
-**Gallery pages:** `src/app/highlights/page.tsx`, `photos/page.tsx`, `videos/page.tsx`, `albums/page.tsx`, `albums/[slug]/page.tsx`
-
-**Selected/Favorites:** `src/components/FavoriteButton.tsx`, `src/app/selected/page.tsx` — localStorage key: `wedding-gallery-selected-assets`
-
-**Design system:** `src/app/globals.css`, `src/app/layout.tsx` (next/font), component Tailwind
-
-**Navigation:** `src/components/TopNav.tsx` — `navLinks` array
-
-**Cloud storage:** `src/lib/storage/*` — implement R2 per `docs/STORAGE.md`
-
----
-
-## Key file locations
+## Key files
 
 | Thing | File |
 |---|---|
-| Prisma client singleton | `src/lib/db.ts` |
-| Prisma schema (5 models) | `prisma/schema.prisma` |
-| Prisma 7 config | `prisma.config.ts` |
-| Auth proxy | `src/proxy.ts` |
-| Auth API | `src/app/api/auth/guest-password/route.ts` |
-| Assets API | `src/app/api/assets/route.ts` |
-| Albums API | `src/app/api/albums/route.ts` |
-| Media endpoints | `src/app/api/media/[id]/{download,preview,thumbnail}/route.ts` |
-| Admin reindex | `src/app/api/admin/reindex/route.ts` |
-| Media URL construction | `src/lib/storage/assetUrls.ts` + `src/lib/r2/client.ts` |
-| Import script | `scripts/import-media.ts` |
-| Scripts DB client | `scripts/db.ts` |
-| Deployment guide | **`docs/DEPLOY.md`** |
+| Prisma client / schema | `src/lib/db.ts` · `prisma/schema.prisma` |
+| Day + function queries | `src/lib/tags/queries.ts` |
+| Media URL tiers | `src/lib/storage/assetUrls.ts` · `src/lib/r2/client.ts` |
+| Face-wall tiering rules | `src/lib/people/tiers.ts` |
+| Admin auth | `src/lib/adminAuth.ts` |
+| Site config (couple names) | `src/lib/settings.ts` |
+| Page chrome | `src/components/AppShell.tsx` · `BottomTabs.tsx` · `DesktopNav.tsx` |
+| Reusable gallery | `src/components/MediaGrid.tsx` · `MediaCard.tsx` · `MediaViewerModal.tsx` |
+| Import pipeline | `scripts/sync-r2-media.ts` · `cluster-events.ts` |
+
+---
+
+## Owner workflow
+
+```bash
+# 1. put originals in the R2 bucket under media/
+npm run sync:r2          # thumbnails, viewer renders, blur, EXIF dates
+npm run cluster:events    # group into days → candidate functions
+# 2. open /admin, name each function, publish it
+```
+
+Repair when files were deleted from the bucket: `npx tsx scripts/prune-missing.ts && npm run sync:r2`.
 
 ---
 
 ## What NOT to add without explicit instruction
 
-- MongoDB or non-Postgres primary database
-- Cloudinary as default storage (see DEPLOY — R2 preferred)
-- Guest uploads (phase 2+)
-- Face recognition logic (v0.5 — schema placeholder exists)
-- Landing page (first experience after auth is `/highlights`)
-- SaaS / multi-tenant patterns
-- Email sharing, watermarking, access expiry
-- Third-party analytics
-
-**Allowed and expected for go-live:** Vercel, Supabase/Neon Postgres, Cloudflare R2 — see `docs/DEPLOY.md`.
+Comments · visible like counts · profiles, follows, activity feeds · guest uploads · photo
+filters or editing · public sharing or discoverability · leaderboards · MongoDB or any
+non-Postgres primary DB · SaaS / multi-tenant patterns · a landing page (first screen after
+auth is the days).
 
 ---
 
 ## After every task
 
-1. Run `npm run dev` and verify the change works (or test against cloud `DATABASE_URL` when C1 is done)
-2. Run the relevant checklist from `docs/TESTING.md`
-3. Non-obvious decisions → `docs/DECISIONS.md`
-4. Behavior changes → update the relevant doc
-5. Phase completion → `docs/PLAN.md`, `docs/TASKS.md`, `docs/CHANGELOG.md`
+1. `npm run build` must pass (regenerate Prisma first if the schema changed).
+2. Verify in the browser at the 390px breakpoint before the desktop one.
+3. Record behaviour changes in `docs/CHANGELOG.md` and `docs/TASKS.md`.

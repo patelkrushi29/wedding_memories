@@ -70,6 +70,10 @@ function thumbnailObjectKey(assetId: string): string {
   return `thumbnails/${assetId}.webp`;
 }
 
+function viewerObjectKey(assetId: string): string {
+  return `viewer/${assetId}.webp`;
+}
+
 function posterObjectKey(assetId: string): string {
   return `thumbnails/${assetId}_poster.jpg`;
 }
@@ -93,6 +97,27 @@ async function ensurePhotoThumbnail(
     width: meta.width ?? null,
     height: meta.height ?? null,
   };
+}
+
+/**
+ * Mid-size render for the viewer. Serving originals to a phone is the single
+ * biggest waste in the delivery path — a 5 MB JPEG per swipe on venue wifi.
+ */
+async function ensureViewerRender(
+  assetId: string,
+  buffer: Buffer
+): Promise<{ viewerKey: string; created: boolean }> {
+  const viewerKey = viewerObjectKey(assetId);
+  if (await r2ObjectExists(viewerKey)) {
+    return { viewerKey, created: false };
+  }
+  const render = await sharp(buffer)
+    .rotate() // honour EXIF orientation
+    .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 82 })
+    .toBuffer();
+  await uploadToR2(viewerKey, render, 'image/webp');
+  return { viewerKey, created: true };
 }
 
 /** Tiny blurred webp as a base64 data URL (~300 bytes) for instant grid placeholders. */
@@ -150,6 +175,7 @@ async function main() {
   let indexed = 0;
   let errors = 0;
   let thumbsCreated = 0;
+  let viewersCreated = 0;
 
   await prisma.asset.updateMany({ data: { isAvailable: false } });
 
@@ -231,6 +257,7 @@ async function main() {
       if (!skipThumbnails) {
         const current = await prisma.asset.findUnique({ where: { id: assetId } });
         let thumbnailPath = current?.thumbnailPath ?? null;
+        let viewerPath = current?.viewerPath ?? null;
         let posterPath = current?.posterPath ?? null;
         let blurDataUrl = current?.blurDataUrl ?? null;
         let takenAt = current?.takenAt ?? null;
@@ -241,11 +268,13 @@ async function main() {
           !(await r2ObjectExists(thumbnailPath));
 
         if (isPhoto) {
+          const needsViewer =
+            !viewerPath || !isR2ObjectKey(viewerPath) || !(await r2ObjectExists(viewerPath));
           const needsBlur = !blurDataUrl;
           const needsTakenAt = !takenAt;
 
-          // Download the original once if any derived data is missing
-          if (needsThumb || needsBlur || needsTakenAt) {
+          // Download the original once, then derive every tier from that buffer
+          if (needsThumb || needsViewer || needsBlur || needsTakenAt) {
             const buffer = await downloadFromR2(mediaKey);
 
             if (needsThumb) {
@@ -256,6 +285,11 @@ async function main() {
                 width = thumb.width;
                 height = thumb.height;
               }
+            }
+            if (needsViewer) {
+              const viewer = await ensureViewerRender(assetId, buffer);
+              viewerPath = viewer.viewerKey;
+              if (viewer.created) viewersCreated++;
             }
             if (needsBlur) blurDataUrl = await makeBlurDataUrl(buffer);
             if (needsTakenAt) takenAt = await extractTakenAt(buffer);
@@ -275,6 +309,7 @@ async function main() {
           where: { id: assetId },
           data: {
             ...(thumbnailPath ? { thumbnailPath } : {}),
+            ...(viewerPath ? { viewerPath } : {}),
             ...(isVideo && posterPath ? { posterPath } : {}),
             ...(width != null && height != null ? { width, height } : {}),
             ...(blurDataUrl ? { blurDataUrl } : {}),
@@ -294,6 +329,7 @@ async function main() {
   console.log('\nR2 sync complete:');
   console.log(`  Indexed/updated: ${indexed}`);
   console.log(`  Thumbnails created/uploaded: ${thumbsCreated}`);
+  console.log(`  Viewer renders created/uploaded: ${viewersCreated}`);
   console.log(`  Errors: ${errors}`);
   console.log(`  DB rows marked unavailable (no longer in R2): ${missing}`);
 

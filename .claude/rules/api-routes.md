@@ -4,47 +4,46 @@ globs: src/app/api/**/*.ts
 
 # Rules for API Routes
 
-**Full docs:** `docs/API.md` · **Production media:** CDN/R2 URLs via StorageProvider (`docs/STORAGE.md`)
-
-You are editing an API route. Follow these rules exactly.
-
 ## Required in every guest-facing query
 ```ts
 where: { isHidden: false, isAvailable: true }
 ```
+Tag-filtered queries must also require `tag: { isVisible: true }` — unpublished functions are
+invisible to guests.
 
-## Required for every list endpoint
-Paginate with skip/take. Never return all records.
+## Pagination
+Cursor-based is the default for galleries; `page`/`skip` is kept for back-compat.
 ```ts
-const page = parseInt(searchParams.get('page') || '1');
-const limit = parseInt(searchParams.get('limit') || '60');
-const skip = (page - 1) * limit;
+const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '60') || 60));
+const cursor = searchParams.get('cursor');
+// ...take: limit, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip })
+```
+Order by a stable pair (`takenAt` + `id`) or cursoring drifts.
+
+Response shape:
+```ts
+{ items, page, limit, total, hasMore, nextCursor }
 ```
 
-## Required response shape for lists
+## Media URLs — never build them by hand
 ```ts
-{ items, page, limit, total, hasMore: skip + items.length < total }
+import { attachMediaUrls } from '@/lib/storage/assetUrls';
+return NextResponse.json({ items: items.map(attachMediaUrls) });
 ```
-
-## Required for media URL construction
-Always add these to asset objects in responses — never expose raw paths:
-```ts
-thumbnailUrl: `/api/media/${a.id}/thumbnail`,
-previewUrl:   `/api/media/${a.id}/preview`,
-downloadUrl:  `/api/media/${a.id}/download`,
-```
-
-## Security: strip these fields from every response
-```ts
-const { originalPath: _, thumbnailPath: _t, posterPath: _p, ...safe } = asset;
-```
+It attaches `thumbnailUrl` / `previewUrl` / `fullUrl` / `downloadUrl` and strips
+`originalPath`, `thumbnailPath`, `viewerPath`, `posterPath`. Never expose a raw key or path.
 
 ## Prisma client
 ```ts
-import { prisma } from '@/lib/db';  // always — never new PrismaClient()
+import { prisma } from '@/lib/db';  // always
 ```
 
 ## Auth
-API routes under `/api/*` are excluded from `src/proxy.ts` auth checks.
-Admin routes must check `ADMIN_REINDEX_SECRET` in production.
-If a route needs protection, add the check inside the handler itself.
+`/api/*` is excluded from the `src/proxy.ts` password gate, so **any guest-facing route is
+effectively public to anyone with the URL** — a known gap, tracked in CLAUDE.md.
+
+Admin routes must call `isAdminAuthorized(request)` from `@/lib/adminAuth`: open in dev,
+`Bearer ADMIN_REINDEX_SECRET` in production, and it refuses the placeholder value `change-me`.
+
+Do not export helpers from a route file — App Router only allows HTTP verb exports. Put shared
+logic in `src/lib/`.

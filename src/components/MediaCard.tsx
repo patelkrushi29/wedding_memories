@@ -1,7 +1,6 @@
 'use client';
 
-import { Download } from 'lucide-react';
-import { FavoriteButton } from './FavoriteButton';
+import { formatDuration } from '@/lib/utils';
 import type { Asset } from '@/types/asset';
 
 interface MediaCardProps {
@@ -9,37 +8,47 @@ interface MediaCardProps {
   onClick: () => void;
 }
 
+/**
+ * A bare thumbnail. No hover chrome by design — saving and downloading live in
+ * the viewer, where there's room for them and a thumb can reach them.
+ */
 export function MediaCard({ asset, onClick }: MediaCardProps) {
+  const isVideo = asset.type === 'VIDEO';
+
   return (
-    <div
-      className="group relative rounded-xl overflow-hidden bg-gray-100 cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 aspect-square"
+    <button
       onClick={onClick}
+      className="group relative block aspect-square overflow-hidden bg-plate sm:rounded-[6px]"
       style={
         asset.blurDataUrl
-          ? { backgroundImage: `url(${asset.blurDataUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+          ? {
+              backgroundImage: `url(${asset.blurDataUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }
           : undefined
       }
     >
       <img
         src={asset.thumbnailUrl}
-        alt={asset.filename}
-        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        alt=""
+        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
         loading="lazy"
       />
-      {/* Hover overlay */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-200" />
-      <div className="absolute bottom-0 inset-x-0 p-2 flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        <FavoriteButton assetId={asset.id} size="sm" />
-        <a
-          href={asset.downloadUrl}
-          download
-          className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
-          title="Download"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Download className="h-3.5 w-3.5" />
-        </a>
-      </div>
-    </div>
+      {isVideo && (
+        <>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-paper/60 bg-black/25 text-[11px] text-paper backdrop-blur-sm">
+              ▶
+            </span>
+          </div>
+          {asset.durationSeconds ? (
+            <span className="numeral absolute bottom-1 right-1.5 text-paper">
+              {formatDuration(asset.durationSeconds)}
+            </span>
+          ) : null}
+        </>
+      )}
+    </button>
   );
 }

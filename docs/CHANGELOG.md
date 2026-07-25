@@ -4,6 +4,49 @@ Chronological record of every session's work, decisions made, and code changes. 
 
 ---
 
+## Session 7 — 2026-07-25 — Darkroom redesign, day → function spine
+
+### What was done
+
+Redesigned the guest experience against the round-2 Darkroom frames, replacing the warm-white/gold
+system and the feed-shaped IA.
+
+- **Design system:** dark photographic palette (ink/plate/veil/paper/ash/dim + a single halide
+  accent), three fonts with distinct roles (Newsreader display, Instrument Sans UI, IBM Plex Mono
+  labels), film grain and sprocket motifs. New PWA icons and theme colour.
+- **IA:** three tabs — The days / People / Saved. Home is day headings with function cards weighted
+  by photo count; `/functions/[slug]` is the gallery with photo/film lanes. Removed the feed,
+  albums, highlights, events, videos and photos pages along with 6 now-unused components.
+- **Schema:** `Tag` gained a self-relation so DAY contains FUNCTION; existing EVENT rows migrated to
+  FUNCTION. `Asset` gained `viewerPath`, `source`, `uploaderName`.
+- **Three image tiers** (delivery notes §4): grid 600px, viewer 1600px, original only for
+  zoom/download. Previously every swipe pulled the full original.
+- **Host page** rewritten: functions grouped under their day, rename inline, publish/hide, delete.
+- Error boundary and not-found pages, so a broken gallery no longer looks like an empty one.
+- Diagnostics: `prune-missing`, `list-bucket`, `audit-thumbnails`, `progress`, `inspect-originals`.
+
+### Decisions made
+
+| # | Decision | Why |
+|---|---|---|
+| D15 | Single wedding, product-quality design | Owner wants to launch their own gallery; multi-tenant can be migrated later if it becomes a product. |
+| D16 | "That's me" face claiming, stored on the device | Cheapest possible identity: no biometrics, reversible, and it unlocks the recap and every "N of you" counter. |
+| D17 | Guest uploads deferred | Browsing, faces and facets first; uploads need resumable transfer plus a moderation queue. |
+| D18 | Outfit signals in the pipeline, never in the UI | Useful for re-identification across days and function boundaries; nobody browses by "red lehenga". |
+| D19 | Facet sheet deferred until derived facets exist | A sheet whose only options duplicate the existing chips is not worth shipping. |
+| D20 | Derived R2 keys are `<assetId>`-based | Simple and collision-free, but it means re-uploading originals invalidates every derived file — hence `prune-missing`. |
+
+### Bugs found
+
+| Bug | Status |
+|---|---|
+| Every thumbnail 404'd — the bucket's `thumbnails/` prefix had been deleted and `media/` re-uploaded under new keys | Fixed: `prune-missing` removed 59 orphaned rows plus the emptied function/day, then `sync:r2` rebuilt all tiers |
+| Viewer served full-resolution originals on every swipe | Fixed by the viewer tier |
+| `.claude/rules/*` still described the old gold/white system, SQLite, and deleted scripts | Rewritten |
+| Uploaded "originals" are 1024px, ~200 KB, with **no EXIF** — they are the old app's resized derivatives, not camera files | Open — blocks real day/function detection and limits image quality; owner needs to upload camera originals |
+
+---
+
 ## Session 4 — 2026-05-30 — R2-only catalog sync
 
 ### What was done

@@ -1,58 +1,60 @@
 export const dynamic = 'force-dynamic';
 
-import Link from 'next/link';
-import { TopNav } from '@/components/TopNav';
-import { FeedSection } from '@/components/FeedSection';
-import { HighlightsStrip } from '@/components/HighlightsStrip';
-import { RecentGrid } from '@/components/RecentGrid';
+import { AppShell } from '@/components/AppShell';
+import { DaysBrowser } from '@/components/DaysBrowser';
 import { PullToRefresh } from '@/components/PullToRefresh';
-import { getFeedSections, getHighlights, getRecentPhotos } from '@/lib/tags/queries';
-import { ChevronRight } from 'lucide-react';
+import { RecentGrid } from '@/components/RecentGrid';
+import { getDaysWithFunctions, getGalleryTotals, getRecentAssets } from '@/lib/tags/queries';
+import { getSiteConfig } from '@/lib/settings';
 
-export default async function FeedPage() {
-  const [sections, highlights] = await Promise.all([getFeedSections(13), getHighlights(10)]);
-  const recent = sections.length === 0 ? await getRecentPhotos(18) : [];
+function totalsLine(t: { days: number; functions: number; total: number }): string {
+  const parts: string[] = [];
+  if (t.days) parts.push(`${t.days} ${t.days === 1 ? 'day' : 'days'}`);
+  if (t.functions) parts.push(`${t.functions} ${t.functions === 1 ? 'function' : 'functions'}`);
+  parts.push(t.total.toLocaleString());
+  return parts.join(' · ');
+}
+
+export default async function DaysPage() {
+  const [days, totals, { coupleNames }] = await Promise.all([
+    getDaysWithFunctions(),
+    getGalleryTotals(),
+    getSiteConfig(),
+  ]);
+  const recent = days.length === 0 ? await getRecentAssets(24) : [];
 
   return (
-    <div className="min-h-screen bg-[#faf9f6]">
-      <TopNav />
-      <main className="max-w-3xl mx-auto px-0 sm:px-6 py-3 sm:py-8">
+    <AppShell subtitle={totalsLine(totals)}>
+      <main className="max-w-3xl mx-auto sm:px-8 pt-4 sm:pt-10">
         <PullToRefresh>
-        <HighlightsStrip assets={JSON.parse(JSON.stringify(highlights))} />
+          <header className="px-5 sm:px-0 pb-6 md:hidden">
+            <h1 className="display text-[26px]">{coupleNames}</h1>
+            <div className="mono mt-2">{totalsLine(totals)}</div>
+          </header>
 
-        {sections.map(({ tag, assets }) => (
-          <FeedSection
-            key={tag.id}
-            tag={{
-              id: tag.id,
-              name: tag.name,
-              slug: tag.slug,
-              assetCount: tag.assetCount,
-              startAt: tag.startAt ? tag.startAt.toISOString() : null,
-              endAt: tag.endAt ? tag.endAt.toISOString() : null,
-            }}
-            initialAssets={JSON.parse(JSON.stringify(assets))}
-          />
-        ))}
-
-        {/* Fallback when no events are named yet */}
-        {sections.length === 0 && (
-          <section className="px-0 sm:px-0">
-            <div className="flex items-end justify-between mb-3 px-4 sm:px-0">
-              <h2 className="font-serif text-xl sm:text-2xl font-semibold text-gray-800">Latest photos</h2>
-              <Link href="/photos" className="text-sm text-[#c9a96e] font-medium flex items-center">
-                See all <ChevronRight className="h-4 w-4" />
-              </Link>
-            </div>
-            {recent.length === 0 ? (
-              <p className="text-gray-500 py-16 text-center">No photos yet — check back soon.</p>
-            ) : (
-              <RecentGrid assets={JSON.parse(JSON.stringify(recent))} />
-            )}
-          </section>
-        )}
+          {days.length > 0 ? (
+            <DaysBrowser days={days} />
+          ) : (
+            <section className="px-5 sm:px-0">
+              <div className="mono mb-3">Everything so far</div>
+              {recent.length === 0 ? (
+                <p className="text-ash py-20 text-center text-sm">
+                  Nothing here yet. Photographs appear as they are added.
+                </p>
+              ) : (
+                <>
+                  <RecentGrid assets={recent} />
+                  <p className="mono mt-6 text-center leading-relaxed">
+                    Days and functions appear
+                    <br />
+                    once they are named
+                  </p>
+                </>
+              )}
+            </section>
+          )}
         </PullToRefresh>
       </main>
-    </div>
+    </AppShell>
   );
 }

@@ -3,8 +3,12 @@ export interface Asset {
   id: string;
   type: string; // "PHOTO" | "VIDEO"
   filename: string;
+  /** Grid tier (~600px webp) */
   thumbnailUrl: string;
+  /** Viewer tier (~1600px webp) — never the original */
   previewUrl: string;
+  /** Full resolution, for pinch-zoom only */
+  fullUrl?: string;
   downloadUrl: string;
   fileSizeBytes: number;
   width?: number | null;
