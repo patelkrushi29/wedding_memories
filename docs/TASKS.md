@@ -1,139 +1,75 @@
-# Task Tracker
+# Tasks — current status and next action
 
-**Purpose:** Start every new Claude Code session by reading this file + CLAUDE.md. This tells you exactly what's done, what's next, and what to work on.
-
-**Last updated:** 2026-07-23 — Phase A (mobile-first) + Phase B (events/tags) shipped; cloud stack live on Vercel
-
----
-
-## How to use this file
-
-1. Read the "Current Status" section
-2. Look at "Next Up" — **cloud foundation (C1–C6) before relying on local SQLite**
-3. After completing a task, move it to "Completed" with the date
-4. Decisions → `docs/CHANGELOG.md` and `docs/DECISIONS.md`
-5. Bugs → "Known Bugs" below
+**Updated:** 2026-07-25. Read `CLAUDE.md` first, then this file. The full phase plan is
+`docs/PLAN.md`; history is `docs/CHANGELOG.md`.
 
 ---
 
-## Current Status
+## Status
 
-**Version:** 0.1 app MVP  
-**Phase:** **Cloud foundation** — Postgres + R2 + Vercel (no local-DB production path)  
-**Target library:** ~10k photos, ~10 × 1h videos  
-**Access:** Shared password + passwordless family link (to build)  
-**Owner uploads only** in phase 1; guest uploads later  
+**Version 0.3.** Cloud stack live on Vercel; guest experience redesigned (Darkroom, day → function).
+282 placeholder photos indexed with three image tiers. Faces and derived facets not started.
 
-**The app runs locally:** Yes (SQLite) for UI dev — **not** the production architecture.  
-**Production stack (documented):** See `docs/DEPLOY.md` — Supabase/Neon + Cloudflare R2 + Vercel + custom domain.  
-**Owner has GitHub:** Yes.
+Live: <https://wedding-memories-sage.vercel.app> · Host tools: `/admin` (local dev only until the
+admin secret is set).
 
 ---
 
-## Completed
+## Waiting on the owner
 
-| Task | Date | Notes |
+Nothing in the codebase moves these forward.
+
+| # | Action | Why it matters |
 |---|---|---|
-| Initial Next.js + Prisma + Tailwind setup | 2026-05-30 | Commit `888982d` |
-| Full MVP: 10 pages, 8 API routes, 9 components | 2026-05-30 | Commit `c983183` |
-| Documentation system | 2026-05-30 | CLAUDE.md + docs/ |
-| S1: Smoke test — local MVP | 2026-05-30 | Pages, auth, import, thumbnails |
-| Bug fix: Import script Prisma 7 | 2026-05-30 | `scripts/db.ts` + libsql adapter |
-| Bug fix: CSS @import → next/font | 2026-05-30 | Playfair Display + Inter |
-| Bug fix: originalPath in API responses | 2026-05-30 | Stripped from guest JSON |
-| Windows DB URL fix | 2026-05-30 | `pathToFileURL()` in db.ts (SQLite dev only) |
-| Production docs + cloud-first plan | 2026-05-30 | `docs/DEPLOY.md`, PLAN/ROADMAP/STORAGE/AUTH updated |
-| C1–C3: Postgres (Supabase) + R2 provider + sync pipeline | 2026-06 | Live on Vercel |
-| C6: Vercel deploy (pooler DATABASE_URL — direct host is IPv6-only) | 2026-07-23 | wedding-memories-sage.vercel.app |
-| Cleanup: dead code, stale branch, unused deps; S3/S4/S6 fixed | 2026-07-23 | Commit `97f4ad1` |
-| **Phase A: mobile-first** — bottom tab bar, feed home (`/`), swipeable viewer, infinite scroll + cursor pagination, blur placeholders, EXIF takenAt in sync | 2026-07-23 | S2 shared types included |
-| **Phase B: events/tags** — Tag/AssetTag schema, `npm run cluster:events` (time-gap), admin naming/publish UI, `/events` page, filter chips, `?event=` filtering | 2026-07-23 | CLIP clustering + faces are next phases |
+| 1 | **Upload camera originals** and give the folder path | The current 282 files are 1024px with no EXIF — the old app's downsized copies. No capture times means no real day/function detection; low resolution means weak face clustering and disappointing downloads. This blocks Phases C and D. |
+| 2 | **Change `GUEST_PASSWORD`** from `wedding` | One guess opens the gallery once a link is forwarded. |
+| 3 | Add `ADMIN_REINDEX_SECRET` *(backlogged)* | Only needed to run host tools from the live site rather than local dev. |
+
+Once (1) lands: `npx tsx scripts/prune-missing.ts` if filenames changed, then `npm run sync:r2`
+(replaced originals are detected by byte count and rebuilt automatically), then
+`npm run cluster:events`, then name the functions in `/admin`.
 
 ---
 
-## Next Up
+## Next up in the code
 
-### PRIORITY: Cloud foundation (do not invest in SQLite for production)
+In order. Each is described in `docs/PLAN.md`.
 
-Read **`docs/DEPLOY.md`** for full detail. Summary:
+1. **Decide the face provider** (Rekognition vs self-hosted InsightFace) — needed before C1, and it
+   is a cost/ops tradeoff the owner should weigh in on.
+2. **Phase C1–C4** — detection, clustering, the face wall, "That's me". The single highest-value
+   feature in the product.
+3. **Phase D1–D2** — quality culling and group size. Both cheap, both immediately visible.
+4. **Phase F1** — single-photo save via the share sheet. Small, and currently iOS guests cannot
+   save a photo to their camera roll at all.
 
-### C1: PostgreSQL (Supabase or Neon) — done
-- [x] `schema.prisma` → `postgresql`
-- [x] `@prisma/adapter-pg` in `src/lib/db.ts`, `scripts/db.ts`
-- [x] `prisma.config.ts` → `env("DATABASE_URL")`
-- [x] `postinstall`: `prisma generate`
-
-### C2: Cloudflare R2 StorageProvider — done
-- [x] `src/lib/r2/client.ts`, `r2StorageProvider.ts`, `attachMediaUrls`
-- [x] API routes return CDN URLs when R2 configured
-
-### C3: Import uploads to R2 — done
-- [x] `import-media.ts` uploads to `media/` + `thumbnails/` keys
-- [x] Progress logging every 25 files
-
-### C4: Video via CDN
-- [ ] Hour-long videos from R2 (range requests), not Vercel API proxy
-
-### C5: Production auth
-- [ ] Bcrypt password, `Secure` cookies
-- [ ] Family link: `/view/[token]` using `FAMILY_VIEW_TOKEN`
-- [ ] Rate limit login; protect admin reindex
-
-### C6: Vercel + custom domain
-- [ ] Deploy, env vars, DNS
-- [ ] Smoke test 50 assets → full library
-
-### Stabilization (in parallel with C2–C3)
-- [ ] **S2** — `src/types/asset.ts`
-- [ ] **S3** — album photo/video counts
-- [ ] **S4** — albums page: Prisma not localhost fetch
-- [ ] **S5** — `GET /api/admin/stats`
-- [ ] **S6** — StorageProvider wired (R2, not local-only)
-
-### Owner prep (can do anytime)
-- [ ] Cloudflare account + R2 bucket
-- [ ] Supabase or Neon project
-- [ ] Vercel linked to GitHub
-- [ ] Custom domain DNS
-- [ ] Run `npm run sync:r2` after files are in R2 `media/` (no local `media/wedding` required)
+Do **not** start Phase C or D against the placeholder library. Clustering 282 low-resolution frames
+with identical timestamps proves nothing.
 
 ---
 
-## Backlog (after cloud MVP live)
+## Doc debt
 
-| Task | Priority | Notes |
-|---|---|---|
-| P1: Owner-friendly README / runbook | High | Link to DEPLOY.md |
-| P2: Video duration (ffprobe) on import | Medium | |
-| P3: Search/filter on album detail | Medium | |
-| P4: Mobile QA with real library | High | |
-| P5: Error boundaries | Medium | |
-| P6: Toasts | Low | |
-| Guest uploads | Later | Explicitly out of phase 1 |
-| ZIP download selected | Later | Button exists, disabled |
+The redesign deleted a lot of code, and these reference docs still describe it. They are actively
+misleading — `STORAGE.md` documents a `StorageProvider` interface that no longer exists, and
+several describe the old gold/white design and SQLite.
 
----
+`ARCHITECTURE.md` · `API.md` · `COMPONENTS.md` · `CONVENTIONS.md` · `DATABASE.md` · `STORAGE.md` ·
+`AUTH.md` · `MEDIA-IMPORT.md` · `TESTING.md` · `WORKFLOWS.md`
 
-## Known Bugs
+**Recommendation:** delete them. Their accurate content already lives in `.claude/rules/*`, which is
+better placed — those files load automatically when the matching code is edited, so they cannot be
+forgotten the way a doc folder can. That would leave a maintainable set: `CLAUDE.md`, `PLAN.md`,
+`TASKS.md`, `CHANGELOG.md`, `DECISIONS.md`, `DEPLOY.md`.
 
-| Bug | Severity | Status |
-|---|---|---|
-| Code still uses SQLite + local files | **Blocker for prod** | C1–C3 |
-| photoCount/videoCount always 0 | Medium | S3 |
-| Albums page localhost self-fetch | Medium | S4 |
-| Admin 4 API calls for counts | Low | S5 |
-| StorageProvider dead code | Medium | S6 + C2 |
-| No family view link | Medium | C5 |
-| No error boundaries | Low | P5 |
+Not done unilaterally — say the word and it takes one commit.
+
+`CHANGELOG.md` and `DECISIONS.md` are historical records; references to SQLite and albums in those
+are correct and should stay.
 
 ---
 
-## Session Handoff Instructions
+## Known gaps
 
-1. Read `CLAUDE.md` + this file + **`docs/DEPLOY.md`**
-2. Pick **C1** unless owner only needs doc/account setup
-3. Do **not** plan SQLite → Postgres migration; implement Postgres directly
-4. On completion: update docs, `CHANGELOG.md`
-
-**Quick start for next session:**
-> Read CLAUDE.md, docs/TASKS.md, and docs/DEPLOY.md. Start C1 (Postgres) and C2 (R2 provider). Skip extending SQLite-only features.
+Tracked in `CLAUDE.md` under "Known gaps": the `/api/*` auth bypass, no bulk download, no family
+link, no rate limit on login, video posters requiring manual upload.

@@ -36,16 +36,26 @@ A **CDN** caches files on edge servers close to guests. When R2 is exposed throu
 
 ---
 
-## Current code vs target (important)
+## Current state — deployed and working
 
-| Piece | Today (repo) | Target (go-live) |
-|-------|----------------|------------------|
-| Database | SQLite + libsql adapter | **PostgreSQL** via `DATABASE_URL` |
-| Media | `media/wedding/` + `/api/media/[id]/*` | **R2** URLs in DB; CDN for delivery |
-| Auth | Single password cookie | Password + **family view link** + bcrypt |
-| Import | Local scan → local thumbs | Scan locally → **upload to R2** → Postgres rows |
+The cloud stack is live. This section used to describe a SQLite-to-Postgres migration; that work is
+done and the migration path is gone.
 
-Until cloud tasks are implemented, developers may use SQLite **only** for short local UI checks. **New work should target Postgres + R2**, not extend the local-only path.
+| Piece | State |
+|-------|-------|
+| Database | **Postgres** (Supabase) via `DATABASE_URL`. No SQLite anywhere. |
+| Media | R2 keys in the database, delivered from the public r2.dev base URL in three tiers. |
+| Auth | Single shared password, httpOnly + Secure cookie, fails closed when unconfigured. Family link still to build. |
+| Import | `sync:r2` indexes R2 → Postgres and derives every tier. |
+
+### The one Vercel gotcha that will bite you
+
+`DATABASE_URL` **must** be the Supabase **pooler** connection string. The direct
+`db.<ref>.supabase.co` host resolves to IPv6 only, which Vercel cannot reach — every request
+returns a 500 with an empty body, and the gallery looks simply empty rather than broken.
+
+Also: Vercel binds environment variables at deploy time. Changing one in the dashboard does nothing
+to the running deployment until you **redeploy**.
 
 ---
 
@@ -101,58 +111,29 @@ Do these once; save secrets in a password manager.
 | `R2_PUBLIC_BASE_URL` | Yes | Public CDN base for objects, e.g. `https://media.yourdomain.com` |
 | `NEXT_PUBLIC_APP_NAME` | No | Display name |
 
-### Local development (during cloud build-out)
+### Local development
 
-Use the **same Postgres** project as production (or a separate “dev” branch/database on Neon/Supabase). **Avoid** `file:./dev.db` for new team work.
+Point `.env` at the **same** Supabase project as production — there is no separate dev database, so
+local changes are live changes. For local work the direct `db.<ref>.supabase.co` host is fine; only
+Vercel needs the pooler.
 
-Optional: keep `MEDIA_ROOT` for import script staging before upload to R2.
+`MEDIA_ROOT` is local-only, used by `import:media` when staging files from disk.
 
 ---
 
-## Implementation checklist (developer)
+## What is still to build
 
-Complete in roughly this order. Details in `docs/PLAN.md` (Cloud Phase).
+The cloud checklist that used to live here (C1–C6) is complete. The remaining work is in
+`docs/PLAN.md`: faces (Phase C), derived facets (D), voice notes and the venue wall (E), and sharing
+— bulk zip, share-sheet saving, the family link, and closing the `/api/*` auth gap (F).
 
-### C1 — PostgreSQL
-- [ ] Change `prisma/schema.prisma` → `provider = "postgresql"`
-- [ ] Remove libsql adapter from `src/lib/db.ts` and `scripts/db.ts`
-- [ ] Update `prisma.config.ts` to use `env("DATABASE_URL")`
-- [ ] Run `npx prisma migrate deploy` against Supabase/Neon
-- [ ] Add `postinstall`: `prisma generate` in `package.json`
-- [ ] Update `docs/DATABASE.md`
+Still open from the original go-live list:
 
-### C2 — Cloudflare R2 storage provider
-- [ ] Implement `src/lib/storage/r2StorageProvider.ts` (or S3-compatible client → R2)
-- [ ] Store `thumbnailUrl`, `previewUrl`, `downloadUrl` (or keys) in API responses from provider
-- [ ] Schema: add fields if needed (`storageKey`, `cdnUrl`) — keep `originalPath` server-only or replace with R2 key
-- [ ] Update `docs/STORAGE.md`
-
-### C3 — Import pipeline uploads to R2
-- [ ] `scripts/import-media.ts`: generate thumbs with sharp locally → upload original + thumb to R2
-- [ ] Write Postgres rows with cloud URLs/keys
-- [ ] Progress logging for 10k files
-- [ ] Update `docs/MEDIA-IMPORT.md`
-
-### C4 — Video delivery
-- [ ] Long videos (~1 hr) served from **R2/CDN** with range requests
-- [ ] Do not proxy full video through Vercel API (timeout + cost)
-- [ ] Posters/thumbnails in R2
-
-### C5 — Auth for production
-- [ ] Bcrypt for `GUEST_PASSWORD` (or `SiteSetting.guestPasswordHash`)
-- [ ] Cookie: `Secure`, `HttpOnly`, `SameSite=Lax`
-- [ ] **Family link:** e.g. `/view/[FAMILY_VIEW_TOKEN]` sets `wg-auth=family` cookie, bypasses password form
+- [ ] Family view link — `/view/[FAMILY_VIEW_TOKEN]`, passwordless for parents
 - [ ] Rate limit `POST /api/auth/guest-password`
-- [ ] Update `docs/AUTH.md`
-
-### C6 — Deploy
-- [ ] Vercel project + env vars
-- [ ] Custom domain + HTTPS
-- [ ] Protect admin routes
-- [ ] Smoke test: 50 photos + 1 short video, then full library
-
-### Stabilization (parallel / before large import)
-- [ ] S2–S6 in `docs/TASKS.md` (shared types, album counts, no localhost fetch, admin stats, StorageProvider wired)
+- [ ] Hash the guest password rather than comparing plaintext
+- [ ] Custom domain
+- [ ] Video posters generated on import (ffmpeg) instead of uploaded by hand
 
 ---
 

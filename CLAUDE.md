@@ -5,6 +5,17 @@ A private, password-gated wedding gallery. **Live:** Next.js on Vercel + **Supab
 
 **Current version:** 0.3 — cloud stack live, Darkroom redesign, day → function spine.
 
+| Need | Read |
+|---|---|
+| What to do next, and what's blocked on the owner | `docs/TASKS.md` |
+| The phase plan and the backlog | `docs/PLAN.md` |
+| What happened, and why | `docs/CHANGELOG.md` · `docs/DECISIONS.md` |
+| Deploying, env vars, the Vercel gotchas | `docs/DEPLOY.md` |
+| Rules for the code you're touching | `.claude/rules/*` (loads automatically) |
+
+Other files in `docs/` predate the redesign and describe deleted code — see the doc-debt note in
+`docs/TASKS.md`.
+
 ---
 
 ## Product decisions that shape everything

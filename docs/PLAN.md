@@ -1,187 +1,122 @@
-# Project Plan — Wedding Memories Gallery
+# Plan
 
-**Production direction:** Postgres (Supabase/Neon) + Cloudflare R2 + Vercel from **day one** — no SQLite production path. See `docs/DEPLOY.md`.
+**Last rewritten:** 2026-07-25, after the Darkroom redesign. Supersedes the old C1–C6 / S2–S6
+plan and the separate `ROADMAP.md`, both of which described a stack and an app that no longer
+exist.
 
-**Owner scope (phase 1):** ~10k photos, ~10 long videos; owner import only; shared password + family link; custom domain.
+Companion docs: `CLAUDE.md` (how to work in this repo) · `docs/TASKS.md` (what to do next) ·
+`docs/CHANGELOG.md` (what happened) · `docs/DECISIONS.md` (why).
 
 ---
 
-## Gap Analysis: PRD vs Current Build
+## Where we actually are
 
-### Passing (working on local dev stack)
+The cloud stack is live and the guest experience has been redesigned. What works today:
 
-| # | Requirement | Status |
+| Area | State |
+|---|---|
+| Hosting | Vercel, deploying from `main`. Live and verified. |
+| Database | Supabase Postgres via the **pooler** connection (the direct host is IPv6-only and fails on Vercel). |
+| Storage | Cloudflare R2, public r2.dev base URL. 282 photos indexed. |
+| Image delivery | **Three tiers** — grid 600px, viewer 1600px, original only for zoom/download. |
+| Structure | Day → function spine. Clustering script proposes; the host names and publishes in `/admin`. |
+| Guest UI | Darkroom design system. Three tabs: The days / People / Saved. Swipeable carousel viewer, infinite scroll, blur placeholders, pull-to-refresh, PWA install. |
+| Auth | Single shared password, httpOnly + Secure cookie, fails closed when unconfigured. |
+| Robustness | Error boundary and not-found pages, so a broken gallery no longer reads as an empty one. |
+
+**Not built yet:** faces, derived facets, bulk download, family link, voice notes, venue wall.
+
+---
+
+## The two things standing in the way
+
+Neither is a coding problem, and both block the phases below.
+
+1. **The library is placeholder data.** The 282 photos in R2 are 1024px, ~200 KB, with **no EXIF**
+   — they are the old app's downsized copies. Without capture times, day/function detection has
+   nothing to work with; without resolution, face clustering will be weak and downloads will
+   disappoint. **Camera originals are the prerequisite for Phase C and D.**
+2. **The guest password is `wedding`.** Fine while testing, guessable in one try the moment a link
+   is forwarded. Change before the real library goes up.
+
+---
+
+## Phase C — People (the headline feature)
+
+The reason someone opens a wedding gallery is to find themselves. Everything here is described in
+the round-2 design notes; the tiering maths is already implemented in `src/lib/people/tiers.ts`.
+
+| Step | Work |
+|---|---|
+| C1 | Face detection + embedding over every photo. Provider decision pending: **AWS Rekognition** (~$10–15 one-time for 10k, accurate on hard candids) vs self-hosted InsightFace (free, needs a GPU worker). |
+| C2 | Cluster embeddings into people. Real `Person` / `Face` models replace the unused `FuturePerson` / `FutureFaceMatch` stubs. Store bounding boxes for face-crop covers. |
+| C3 | The face wall: frequency-sorted, tiered by `clamp(total/400, 3, 25)`, blank labels for unnamed clusters (never "Person 47"), pinned couple/host-named/already-saved. |
+| C4 | **"That's me"** — one tap claims a cluster, stored on the device. Unlocks "N of you" badges and every "with you" filter. |
+| C5 | Host controls: name clusters, merge/split, hide. Separate switches for *face search* and *browse faces*. Per-guest "hide me" removes from the wall, not just from search. |
+| C6 | Per-guest recap — attendance span across functions, co-occurrence ("you and Meera, 41 photos"). The most shareable screen in the product. |
+| C7 | Face search across **video** — sample frames server-side and index them like stills. Most competitors quietly skip this. |
+
+## Phase D — Derived facets
+
+Turns 10,000 photos into something navigable. All auto-derived; the guest tags nothing.
+
+| Step | Work | Cost |
 |---|---|---|
-| 1 | App runs with `npm run dev` | Yes |
-| 2 | Owner adds files to `media/wedding` | Yes (local staging) |
-| 3 | `npm run import:media` | Yes (local DB + disk) |
-| 4–12 | Gallery pages, auth, favorites, admin | Yes (see prior audit) |
-| 17 | Originals not in git | Yes |
-| 18 | Face recognition placeholder | Schema only |
+| D1 | **Quality culling** — blur (Laplacian variance) and near-duplicates (perceptual hash), hidden by default. This is what stops a large library feeling like a hard drive. | Local compute, free |
+| D2 | **Group size** — face count per photo → "Just me / Two of us / Small group / Crowd". Cheap once C1 exists, and nobody else offers it. | Free after C1 |
+| D3 | **Objects and scenes** via CLIP/SigLIP embeddings — rings, decor, the mandap, food, dancing. Zero-shot, so no training. Store vectors in pgvector for "more like this" later. | Free, overnight CPU job |
+| D4 | **Sub-moments** — timestamp density inside a function ("the entrance", "the toasts"). | Free |
+| D5 | **Outfit embeddings** — pipeline only, never a UI filter. Improves re-identification across days and sharpens function boundaries. | Free |
+| D6 | The facet sheet itself, once there is something real to put in it. Deliberately not built yet — a sheet whose only options duplicate the photo/film chips isn't worth shipping. | — |
 
-### Failing or incomplete for **go-live**
+## Phase E — Emotional returns
 
-| # | Issue | Severity |
-|---|---|---|
-| P0 | **Still on SQLite + local disk** | Blocker — C1–C3 |
-| P0 | **No R2 / CDN media** | Blocker — C2–C4 |
-| P0 | **No family passwordless link** | Required — C5 |
-| P0 | **Prototype auth** (plaintext, API open) | Blocker for public URL — C5 |
-| 13 | Admin reindex | Works locally; must target cloud import |
-| 14 | Mobile not verified | Medium |
-| 15 | Owner README | Medium |
-| 16 | Thumbnails via Node API | Slow at 10k — fix with R2 CDN URLs |
-| 19 | StorageProvider unwired | Medium — S6 + C2 |
-| S2–S6 | Stabilization items | Medium — see below |
+Cheap relative to their impact, per the research.
 
-### Feature gaps (unchanged from local MVP)
+- **E1 Voice and video notes** — 60s cap, recorded in-browser, delivered **only to the couple**.
+  No feed, no counts, no replies. Include a real prompt ("what's your favourite memory of us?")
+  or you get "congratulations".
+- **E2 Venue wall** — a URL a projector opens. Newest upload takes the large tile, rotates.
+  Moderation on by default. Nearly free because this is a web app.
+- **E3 Post-event nudge** — one message a day later: "you took photos on Friday, 12 aren't here
+  yet." Where the long tail of uploads actually comes from.
+- **E4 "A year ago today"** — the retention model. Needs the "never opened" flag.
 
-| Feature | Status |
+## Phase F — Sharing that works
+
+- **F1** Single photo save via `navigator.share({ files })` — the iOS share sheet is the only route
+  to the camera roll from the web. Copy must say "Save to photos", not promise one tap.
+- **F2** Bulk download as a server-side zip. On iOS this lands in Files, not Photos — say so in the
+  UI. Needs the `archiver` dependency back.
+- **F3** Family view link — `/view/[FAMILY_VIEW_TOKEN]`, passwordless for parents.
+- **F4** Close the `/api/*` auth gap: guest-facing routes currently answer anyone with the URL.
+
+---
+
+## Backlog
+
+Small, unblocked, do whenever.
+
+| Item | Notes |
 |---|---|
-| photoCount/videoCount | Always 0 — S3 |
-| Album cover UI | Not built |
-| Album detail search | Not built |
-| Video duration on import | Not built |
-| ZIP download | Disabled (correct) |
-| Shared Asset type | Duplicated — S2 |
-| Guest uploads | **Deferred** (phase 2+) |
+| `ADMIN_REINDEX_SECRET` on Vercel | Not set, so `/admin` only works from local dev. Both are the same database, so nothing is blocked — it's convenience. |
+| Rename it to `ADMIN_SECRET` | The name is a leftover from a `/api/admin/reindex` endpoint that was deleted; it now guards the host API generally. |
+| Persist the admin secret | Currently React state, so it's re-entered every visit. `localStorage` would make it once per device. |
+| `NEXT_PUBLIC_COUPLE_NAMES` | Unset, so the gallery header falls back to "Wedding Memories". |
+| Custom domain | Still on `wedding-memories-sage.vercel.app`. |
+| Rate-limit the login route | No limit today; brute-forcing a shared password is unthrottled. |
+| Consolidate `docs/` | 10 reference docs predate the redesign and describe deleted code. See TASKS.md. |
+| Video posters | `resolveVideoThumbnail` expects a manually uploaded poster. Should be ffmpeg on import — pick the sharpest, most-faces frame, not frame zero. |
 
 ---
 
-## Phase order (updated)
+## Refused, deliberately
 
-```
-Cloud foundation (C1–C6)  ──►  Stabilization (S2–S6)  ──►  Polish (P1–P7)  ──►  Scale (SC*)  ──►  Face (FR*)  ──►  Memory
-```
+Not "later" — decided against. Reversing any of these is a product decision, not a task.
 
-**Do not** complete “Scale on SQLite” then migrate. Point `DATABASE_URL` at Postgres before large imports.
+Comments · visible like counts · profiles, follows, activity feeds · public sharing or
+discoverability · photo filters and editing · leaderboards or scored challenges · an outfit filter
+in the UI · MongoDB or any non-Postgres primary database · SaaS / multi-tenant patterns.
 
----
-
-## Cloud Foundation Phase (C1–C6) — do first
-
-Full checklist: `docs/DEPLOY.md`.
-
-### C1: PostgreSQL (Supabase or Neon)
-
-- `provider = "postgresql"` in schema
-- Remove `@prisma/adapter-libsql` from app + scripts
-- `DATABASE_URL` only — no `file:./dev.db` in production
-- Run migrations on cloud DB
-- `postinstall`: `prisma generate`
-- **Not using:** MongoDB, SQLite in prod
-
-### C2: Cloudflare R2 StorageProvider
-
-- Implement R2 (S3-compatible SDK)
-- CDN public base URL for thumbnails/previews/downloads
-- Deprecate serving full library through `/api/media/*` for grids
-
-### C3: Import → R2 + Postgres
-
-- Owner still stages files under `media/wedding/` (or chosen folder)
-- Import uploads to R2, writes metadata to Postgres
-- Batch/progress for ~10k files
-
-### C4: Long video delivery
-
-- Stream from R2/CDN with range support
-- Avoid Vercel function timeouts on 1h files
-
-### C5: Production auth
-
-- Bcrypt `GUEST_PASSWORD` / `SiteSetting.guestPasswordHash`
-- `FAMILY_VIEW_TOKEN` + route (e.g. `/view/[token]`) for parents
-- `Secure` cookies, rate limit login, protect admin
-
-### C6: Vercel + custom domain
-
-- GitHub → Vercel, all env vars from DEPLOY.md
-- Custom domain on Cloudflare/Vercel
-- Test 50 assets, then full library
-
----
-
-## Stabilization Phase (S1–S6)
-
-Can run **in parallel** with C2–C3. S1 done.
-
-| Task | Description |
-|---|---|
-| S2 | `src/types/asset.ts` |
-| S3 | Album photo/video counts in API |
-| S4 | Albums page: direct Prisma, no localhost fetch |
-| S5 | `GET /api/admin/stats` |
-| S6 | Wire StorageProvider (**R2**, not local-only) |
-
----
-
-## Polish Phase (v0.2)
-
-After cloud MVP is live.
-
-| Task | Notes |
-|---|---|
-| P1 | Owner runbook + link DEPLOY.md |
-| P2 | ~~next/font~~ — **done** |
-| P3 | Video duration (ffprobe) |
-| P4 | Album detail FilterBar |
-| P5 | Mobile swipe, tap targets |
-| P6 | Error boundaries |
-| P7 | Toasts |
-
----
-
-## Scale Phase (v0.3)
-
-After **cloud** import of full library.
-
-| Task | Notes |
-|---|---|
-| SC1 | Validate 10k photos + long videos on R2/CDN |
-| SC2 | Infinite scroll |
-| SC3 | Import progress, batching, dry-run, checksum |
-| SC4 | `next/image`, blur placeholders |
-
----
-
-## Face Recognition Phase (v0.5)
-
-Unchanged — FR1–FR3 after production stable.
-
----
-
-## Memory Features Phase (v0.6)
-
-Unchanged.
-
----
-
-## Guest uploads
-
-**Not in phase 1.** Add after cloud gallery is stable.
-
----
-
-## Phase Dependencies (diagram)
-
-```
-                    ┌─────────────────┐
-                    │  C1 Postgres    │
-                    └────────┬────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              ▼              ▼              ▼
-        ┌──────────┐  ┌──────────┐  ┌──────────┐
-        │ C2 R2    │  │ C5 Auth  │  │ S2–S6    │
-        └────┬─────┘  └────┬─────┘  └──────────┘
-             │             │
-             ▼             │
-        ┌──────────┐       │
-        │ C3 Import│       │
-        └────┬─────┘       │
-             ▼             ▼
-        ┌──────────┐  ┌──────────┐
-        │ C4 Video │  │ C6 Deploy│
-        └──────────┘  └──────────┘
-```
+Guest uploads are **deferred, not refused** — they need resumable transfer over bad venue wifi,
+on-device compression, and a moderation queue, which is a phase of its own.
