@@ -25,6 +25,8 @@ const VIDEO_EXTS = new Set(['.mp4', '.mov', '.m4v', '.webm']);
 const MEDIA_PREFIX = 'media/';
 
 const skipThumbnails = process.argv.includes('--skip-thumbnails');
+/** Rebuild thumbnails, viewer renders, blur and EXIF even when they already exist. */
+const force = process.argv.includes('--force');
 
 function parseAlbum(relativePath: string): {
   albumTitle: string;
@@ -81,15 +83,20 @@ function posterObjectKey(assetId: string): string {
 async function ensurePhotoThumbnail(
   assetId: string,
   mediaKey: string,
-  buffer: Buffer
+  buffer: Buffer,
+  rebuild = false
 ): Promise<{ thumbKey: string; created: boolean; width: number | null; height: number | null }> {
   const thumbKey = thumbnailObjectKey(assetId);
-  if (await r2ObjectExists(thumbKey)) {
+  if (!rebuild && (await r2ObjectExists(thumbKey))) {
     return { thumbKey, created: false, width: null, height: null };
   }
 
   const meta = await sharp(buffer).metadata();
-  const thumbBuffer = await sharp(buffer).resize(600).webp({ quality: 80 }).toBuffer();
+  const thumbBuffer = await sharp(buffer)
+    .rotate() // honour EXIF orientation
+    .resize(600)
+    .webp({ quality: 80 })
+    .toBuffer();
   await uploadToR2(thumbKey, thumbBuffer, 'image/webp');
   return {
     thumbKey,
@@ -105,10 +112,11 @@ async function ensurePhotoThumbnail(
  */
 async function ensureViewerRender(
   assetId: string,
-  buffer: Buffer
+  buffer: Buffer,
+  rebuild = false
 ): Promise<{ viewerKey: string; created: boolean }> {
   const viewerKey = viewerObjectKey(assetId);
-  if (await r2ObjectExists(viewerKey)) {
+  if (!rebuild && (await r2ObjectExists(viewerKey))) {
     return { viewerKey, created: false };
   }
   const render = await sharp(buffer)
@@ -176,6 +184,7 @@ async function main() {
   let errors = 0;
   let thumbsCreated = 0;
   let viewersCreated = 0;
+  let staleRebuilt = 0;
 
   await prisma.asset.updateMany({ data: { isAvailable: false } });
 
@@ -220,6 +229,16 @@ async function main() {
       const existing = await prisma.asset.findUnique({ where: { relativePath } });
       let assetId = existing?.id;
 
+      // A different byte count under the same key means the original was replaced
+      // (e.g. downsized copies swapped for camera files) — every derived render
+      // is now stale and must be rebuilt.
+      const replaced = Boolean(existing && existing.fileSizeBytes !== size);
+      if (replaced) {
+        console.log(`  ${filename}: original changed, rebuilding derived renders`);
+        staleRebuilt++;
+      }
+      const rebuild = force || replaced;
+
       if (!assetId) {
         const created = await prisma.asset.create({
           data: {
@@ -263,22 +282,26 @@ async function main() {
         let takenAt = current?.takenAt ?? null;
 
         const needsThumb =
+          rebuild ||
           !thumbnailPath ||
           !isR2ObjectKey(thumbnailPath) ||
           !(await r2ObjectExists(thumbnailPath));
 
         if (isPhoto) {
           const needsViewer =
-            !viewerPath || !isR2ObjectKey(viewerPath) || !(await r2ObjectExists(viewerPath));
-          const needsBlur = !blurDataUrl;
-          const needsTakenAt = !takenAt;
+            rebuild ||
+            !viewerPath ||
+            !isR2ObjectKey(viewerPath) ||
+            !(await r2ObjectExists(viewerPath));
+          const needsBlur = rebuild || !blurDataUrl;
+          const needsTakenAt = rebuild || !takenAt;
 
           // Download the original once, then derive every tier from that buffer
           if (needsThumb || needsViewer || needsBlur || needsTakenAt) {
             const buffer = await downloadFromR2(mediaKey);
 
             if (needsThumb) {
-              const thumb = await ensurePhotoThumbnail(assetId, mediaKey, buffer);
+              const thumb = await ensurePhotoThumbnail(assetId, mediaKey, buffer, rebuild);
               thumbnailPath = thumb.thumbKey;
               if (thumb.created) thumbsCreated++;
               if (thumb.width != null) {
@@ -287,7 +310,7 @@ async function main() {
               }
             }
             if (needsViewer) {
-              const viewer = await ensureViewerRender(assetId, buffer);
+              const viewer = await ensureViewerRender(assetId, buffer, rebuild);
               viewerPath = viewer.viewerKey;
               if (viewer.created) viewersCreated++;
             }
@@ -330,6 +353,7 @@ async function main() {
   console.log(`  Indexed/updated: ${indexed}`);
   console.log(`  Thumbnails created/uploaded: ${thumbsCreated}`);
   console.log(`  Viewer renders created/uploaded: ${viewersCreated}`);
+  if (staleRebuilt) console.log(`  Replaced originals rebuilt: ${staleRebuilt}`);
   console.log(`  Errors: ${errors}`);
   console.log(`  DB rows marked unavailable (no longer in R2): ${missing}`);
 
