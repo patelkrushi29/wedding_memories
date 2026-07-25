@@ -1,20 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PLACEHOLDERS = new Set(['change-me', 'wedding', 'password']);
+const WEAK = new Set(['change-me', 'wedding', 'password']);
 
 export async function POST(request: NextRequest) {
   const { password } = await request.json();
   const expected = process.env.GUEST_PASSWORD?.trim();
 
-  // Fail closed. A missing or placeholder password must never fall back to a
-  // guessable default — that silently made the whole gallery public once.
-  if (!expected || PLACEHOLDERS.has(expected.toLowerCase())) {
+  // Fail closed when unconfigured. This route used to fall back to the literal
+  // string 'wedding', which silently made the gallery public. It must never
+  // accept a value the owner did not choose.
+  if (!expected) {
     console.error(
-      'GUEST_PASSWORD is unset or still a placeholder — refusing all logins. Set it in the environment and redeploy.'
+      'GUEST_PASSWORD is not set — refusing all logins. Set it in the environment and redeploy.'
     );
     return NextResponse.json(
       { ok: false, error: 'This gallery is not configured yet. Please contact the couple.' },
       { status: 503 }
+    );
+  }
+
+  // A weak password is the owner's call to make, not ours to veto — just say so.
+  if (WEAK.has(expected.toLowerCase())) {
+    console.warn(
+      `GUEST_PASSWORD is "${expected}", which is among the first things anyone would guess for a wedding gallery.`
     );
   }
 
