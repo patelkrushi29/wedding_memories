@@ -31,9 +31,6 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env
-.env.local
-.env.production
 
 # vercel
 .vercel
@@ -48,9 +45,9 @@ CLAUDE.local.md
 # wedding gallery
 /media/
 public/generated/
-.env
 *.db
 prisma/dev.db
 
 # Local CLIP weights (fetched with curl, see README)
 models/
+config.bat

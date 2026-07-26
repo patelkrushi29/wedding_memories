@@ -16,7 +16,8 @@
     "cluster:events": "tsx scripts/cluster-events.ts",
     "cluster:visual": "tsx scripts/cluster-visual.ts",
     "test:db": "tsx scripts/test-db-connection.ts",
-    "suggest:names": "tsx scripts/suggest-names.ts"
+    "suggest:names": "tsx scripts/suggest-names.ts",
+    "embed:outfits": "tsx scripts/embed-outfits.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1057.0",
