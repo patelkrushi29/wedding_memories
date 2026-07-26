@@ -45,6 +45,42 @@ without capture times the day/function grouping has nothing to work from.
 If files are already in the bucket under `media/`, skip the upload step. `sync:r2` owns everything
 derived and is safe to re-run — it only does work that's missing.
 
+## Visual clustering
+
+When the photographs have no usable EXIF capture times, the events are recovered from what the
+photos *look like* instead. Same computation later powers object filters and "more like this".
+
+Weights are loaded from disk rather than the Hub — a batch job over thousands of photos shouldn't
+depend on a network fetch to start, and the Hub download reset mid-transfer on at least one
+connection. `models/` is gitignored, so fetch it once:
+
+```bash
+mkdir -p models/clip-vit-base-patch32/onnx
+cd models/clip-vit-base-patch32
+base=https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main
+for f in config.json preprocessor_config.json tokenizer.json tokenizer_config.json; do
+  curl -sL --retry 5 --retry-all-errors -o "$f" "$base/$f"
+done
+cd onnx
+for f in vision_model_quantized.onnx text_model_quantized.onnx; do
+  curl -sL --retry 5 --retry-all-errors -o "$f" "$base/onnx/$f"
+done
+```
+
+Then:
+
+```bash
+npm run embed                          # ~2 photos/sec, resumable
+npm run cluster:visual -- --dry        # see the proposed grouping
+npm run cluster:visual                 # write hidden candidates for /admin
+```
+
+Embedding reads the 600px thumbnail, not the original — CLIP downsamples to 224px anyway, so this
+is roughly 320 MB of R2 reads for 10,000 photos instead of 80 GB.
+
+Tuning: `--threshold` (lower = fewer, broader scenes), `--merge` (how readily two cameras' scenes are
+treated as the same function), `--min`, `--confirm`. Start with `--dry` and iterate.
+
 ## Scripts
 
 | Script | Description |
@@ -52,7 +88,9 @@ derived and is safe to re-run — it only does work that's missing.
 | `npm run dev` / `build` | Development server / production build |
 | `npm run upload:r2` | Local folder → R2 `media/`. `--from "path"`, `--dry` |
 | `npm run sync:r2` | Index R2 → Postgres and derive every image tier. `--force` to rebuild |
-| `npm run cluster:events` | Build the day → function spine. `--gap=N` hours |
+| `npm run cluster:events` | Build the day → function spine from EXIF timestamps. `--gap=N` hours |
+| `npm run embed` | CLIP embedding per photo. `--limit=N`, `--force` |
+| `npm run cluster:visual` | Group by appearance when timestamps are missing. `--dry` first |
 | `npm run test:db` / `db:studio` | Connection check / Prisma Studio |
 
 Diagnostics, run with `npx tsx scripts/<name>.ts`: `list-bucket` (what's in R2),

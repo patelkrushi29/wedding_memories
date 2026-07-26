@@ -48,6 +48,8 @@ model Asset {
   blurDataUrl    String?   // tiny base64 placeholder for instant grid rendering
   source         String?   // "pro" | "guest" — drives the "who shot it" facet
   uploaderName   String?   // display name for attribution ("shot by Rohit")
+  embedding      Float[]   // CLIP image embedding, unit-normalised. Empty = not yet computed
+  embeddedAt     DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   tags           AssetTag[]

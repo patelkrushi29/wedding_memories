@@ -51,3 +51,6 @@ public/generated/
 .env
 *.db
 prisma/dev.db
+
+# Local CLIP weights (fetched with curl, see README)
+models/

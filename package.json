@@ -12,8 +12,11 @@
     "db:studio": "prisma studio",
     "upload:r2": "tsx scripts/upload-to-r2.ts",
     "sync:r2": "tsx scripts/sync-r2-media.ts",
+    "embed": "tsx scripts/embed-photos.ts",
     "cluster:events": "tsx scripts/cluster-events.ts",
-    "test:db": "tsx scripts/test-db-connection.ts"
+    "cluster:visual": "tsx scripts/cluster-visual.ts",
+    "test:db": "tsx scripts/test-db-connection.ts",
+    "suggest:names": "tsx scripts/suggest-names.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1057.0",
@@ -36,6 +39,7 @@
     "tsx": "^4.22.3"
   },
   "devDependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",

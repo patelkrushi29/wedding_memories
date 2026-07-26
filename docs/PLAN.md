@@ -64,7 +64,7 @@ Turns 10,000 photos into something navigable. All auto-derived; the guest tags n
 |---|---|---|
 | D1 | **Quality culling** — blur (Laplacian variance) and near-duplicates (perceptual hash), hidden by default. This is what stops a large library feeling like a hard drive. | Local compute, free |
 | D2 | **Group size** — face count per photo → "Just me / Two of us / Small group / Crowd". Cheap once C1 exists, and nobody else offers it. | Free after C1 |
-| D3 | **Objects and scenes** via CLIP/SigLIP embeddings — rings, decor, the mandap, food, dancing. Zero-shot, so no training. Store vectors in pgvector for "more like this" later. | Free, overnight CPU job |
+| D3 | ~~**Objects and scenes** via CLIP embeddings~~ — **embedding pipeline built** (`npm run embed`, ~2 photos/sec on CPU, vectors on `Asset.embedding`). Visual event grouping and zero-shot naming ship with it. Object/scene *filters* still to wire into the UI. | Done for grouping; free |
 | D4 | **Sub-moments** — timestamp density inside a function ("the entrance", "the toasts"). | Free |
 | D5 | **Outfit embeddings** — pipeline only, never a UI filter. Improves re-identification across days and sharpens function boundaries. | Free |
 | D6 | The facet sheet itself, once there is something real to put in it. Deliberately not built yet — a sheet whose only options duplicate the photo/film chips isn't worth shipping. | — |
