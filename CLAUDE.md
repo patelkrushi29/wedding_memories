@@ -114,18 +114,21 @@ Dark, photographic, one accent. Full token list and type roles: `.claude/rules/c
 | Site config (couple names) | `src/lib/settings.ts` |
 | Page chrome | `src/components/AppShell.tsx` · `BottomTabs.tsx` · `DesktopNav.tsx` |
 | Reusable gallery | `src/components/MediaGrid.tsx` · `MediaCard.tsx` · `MediaViewerModal.tsx` |
-| Import pipeline | `scripts/sync-r2-media.ts` · `cluster-events.ts` |
+| Import pipeline | `scripts/upload-to-r2.ts` (upload only) · `sync-r2-media.ts` (owns all derived data) · `cluster-events.ts` |
 
 ---
 
 ## Owner workflow
 
 ```bash
-# 1. put originals in the R2 bucket under media/
-npm run sync:r2          # thumbnails, viewer renders, blur, EXIF dates
-npm run cluster:events    # group into days → candidate functions
-# 2. open /admin, name each function, publish it
+npm run upload:r2 -- --from "D:/path/to/originals"   # local folder → R2 media/
+npm run sync:r2                                       # thumbnails, viewer renders, blur, EXIF
+npm run cluster:events                                # group into days → candidate functions
+# then open /admin, name each function, publish it
 ```
+
+Subfolders are preserved as R2 keys, so a folder per event (`Ceremony/`, `Sangeet/`) becomes an
+album name — the most reliable signal for naming functions when EXIF is missing.
 
 Repair when files were deleted from the bucket: `npx tsx scripts/prune-missing.ts && npm run sync:r2`.
 

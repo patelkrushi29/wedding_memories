@@ -117,7 +117,7 @@ Point `.env` at the **same** Supabase project as production — there is no sepa
 local changes are live changes. For local work the direct `db.<ref>.supabase.co` host is fine; only
 Vercel needs the pooler.
 
-`MEDIA_ROOT` is local-only, used by `import:media` when staging files from disk.
+`MEDIA_ROOT` is local-only: the default folder for `upload:r2` when `--from` is omitted.
 
 ---
 
@@ -146,16 +146,18 @@ Still open from the original go-live list:
      Ceremony/
      ...
    ```
-2. Developer runs import (uploads to R2 + fills Postgres):
+2. Upload, index, and group:
    ```bash
-   npm run import:media
+   npm run upload:r2 -- --from "D:/path/to/originals"
+   npm run sync:r2
+   npm run cluster:events
    ```
-3. Guests open `https://photos.yourdomain.com` → enter password.
-4. Parents open **family link** (no password):  
-   `https://photos.yourdomain.com/view/<FAMILY_VIEW_TOKEN>`  
-   (exact route implemented in C5.)
+3. Open `/admin`, name each candidate function, publish it.
+4. Guests open the site → enter the password.
+5. Parents open the **family link** (no password) — route not built yet, Phase F3 in `docs/PLAN.md`.
 
-**Adding more photos later:** add files to folders → run import again (or Admin reindex when wired to cloud).
+**Adding more photos later:** run the same three commands. All of them skip work that's already
+done, so re-running is cheap and safe.
 
 ---
 

@@ -1,68 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { r2RedirectUrl } from '@/lib/media/resolve';
-import { isLocalFilesystemPath } from '@/lib/r2/client';
-import * as fs from 'fs';
 
+/**
+ * Fallback resolver for the viewer tier. Prefers the mid-size render and falls
+ * back to the original. Byte-range streaming used to live here for local files;
+ * R2 serves ranges itself, which is what long videos need.
+ */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
 
-  const asset = await prisma.asset.findUnique({ where: { id } });
+  const asset = await prisma.asset.findUnique({
+    where: { id },
+    select: { viewerPath: true, originalPath: true },
+  });
   if (!asset) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const r2Url = r2RedirectUrl(asset.originalPath);
-  if (r2Url) {
-    return NextResponse.redirect(r2Url, 307);
+  const r2Url = r2RedirectUrl(asset.viewerPath) ?? r2RedirectUrl(asset.originalPath);
+  if (!r2Url) {
+    return NextResponse.json({ error: 'Media storage is not configured' }, { status: 503 });
   }
-
-  if (!isLocalFilesystemPath(asset.originalPath) || !fs.existsSync(asset.originalPath)) {
-    return NextResponse.json({ error: 'File not found' }, { status: 404 });
-  }
-
-  const stat = fs.statSync(asset.originalPath);
-  const mimeType = asset.mimeType || 'application/octet-stream';
-  const rangeHeader = request.headers.get('range');
-
-  if (rangeHeader) {
-    const [startStr, endStr] = rangeHeader.replace(/bytes=/, '').split('-');
-    const start = parseInt(startStr, 10);
-    const end = endStr ? parseInt(endStr, 10) : stat.size - 1;
-    const chunkSize = end - start + 1;
-    const stream = fs.createReadStream(asset.originalPath, { start, end });
-    const body = await streamToBuffer(stream);
-
-    return new NextResponse(body as unknown as BodyInit, {
-      status: 206,
-      headers: {
-        'Content-Range': `bytes ${start}-${end}/${stat.size}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': chunkSize.toString(),
-        'Content-Type': mimeType,
-      },
-    });
-  }
-
-  const fileBuffer = fs.readFileSync(asset.originalPath);
-  return new NextResponse(fileBuffer as unknown as BodyInit, {
-    headers: {
-      'Content-Type': mimeType,
-      'Accept-Ranges': 'bytes',
-      'Content-Length': fileBuffer.length.toString(),
-      'Cache-Control': 'public, max-age=3600',
-    },
-  });
-}
-
-async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  return new Promise((resolve, reject) => {
-    stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
-    stream.on('end', () => resolve(Buffer.concat(chunks)));
-    stream.on('error', reject);
-  });
+  return NextResponse.redirect(r2Url, 307);
 }
