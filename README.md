@@ -58,7 +58,7 @@ derived and is safe to re-run — it only does work that's missing.
 Diagnostics, run with `npx tsx scripts/<name>.ts`: `list-bucket` (what's in R2),
 `audit-thumbnails` (database vs reality — run this first if images 404), `prune-missing` (drop rows
 whose files were deleted), `progress`, `inspect-originals` (resolution and EXIF of what you
-uploaded).
+uploaded), `inspect-filenames` (cameras and shooting sequence, useful when EXIF is missing).
 
 ## Documentation
 
