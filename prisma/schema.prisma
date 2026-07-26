@@ -48,8 +48,15 @@ model Asset {
   blurDataUrl    String?   // tiny base64 placeholder for instant grid rendering
   source         String?   // "pro" | "guest" — drives the "who shot it" facet
   uploaderName   String?   // display name for attribution ("shot by Rohit")
-  embedding      Float[]   // CLIP image embedding, unit-normalised. Empty = not yet computed
+  embedding      Float[]   // CLIP image embedding of the whole frame. Empty = not computed
   embeddedAt     DateTime?
+  // Mean CLIP embedding of the torsos of the largest people in frame. Encodes what
+  // everyone is wearing, which changes per function and barely changes within one —
+  // a far better boundary signal than the whole frame, which is dominated by
+  // framing and venue. Pipeline only; never surfaced as a filter.
+  outfitEmbedding Float[]
+  outfitPeople    Int?     // how many torsos contributed
+  outfitAt        DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   tags           AssetTag[]

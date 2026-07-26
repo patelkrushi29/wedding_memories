@@ -27,7 +27,7 @@
  *   npm run cluster:visual -- --threshold=0.72   # stricter/looser boundaries
  */
 import 'dotenv/config';
-import slugify from 'slugify';
+import { createHash } from 'crypto';
 import { prisma } from './db';
 import { cosine } from './clip';
 
@@ -50,17 +50,57 @@ const MIN_SEGMENT = parseInt(arg('min') ?? '8', 10);
 /** Centroid similarity above which two segments are the same function. */
 const MERGE_AT = parseFloat(arg('merge') ?? '0.90');
 /**
+ * Force an exact number of functions, ignoring the similarity threshold. Use when
+ * you know the answer — "this was three events" is information the pixels don't
+ * have, and a threshold is a poor way to express it.
+ */
+const GROUPS = arg('groups') ? parseInt(arg('groups')!, 10) : undefined;
+/**
  * Compare each frame against the mean of this many recent frames, not the whole
  * segment. A long scene drifts — a ceremony moves from processional to vows — and
  * a whole-segment mean would keep falling behind and cut it into pieces. A
  * trailing window tracks gradual drift and only breaks on an abrupt change.
  */
 const WINDOW = parseInt(arg('window') ?? '5', 10);
+/**
+ * Which vector to cluster on.
+ *   scene  — whole frame. Encodes venue, decor and composition.
+ *   outfit — torsos of the people in frame. What everyone is wearing changes
+ *            between functions and holds steady within one, so it draws cleaner
+ *            boundaries than the frame does.
+ *   both   — weighted combination (see --outfit-weight).
+ */
+const SIGNAL = (arg('signal') ?? 'both') as 'scene' | 'outfit' | 'both';
+/** How much of the combined vector is outfit. Outfit leads because it's the stronger cue. */
+const OUTFIT_WEIGHT = parseFloat(arg('outfit-weight') ?? '0.65');
 
 interface Photo {
   id: string;
   filename: string;
   embedding: number[];
+}
+
+/**
+ * Build the vector we cluster on. For 'both', the two unit vectors are scaled and
+ * concatenated — cosine similarity over the result is then exactly the weighted sum
+ * of the two similarities, which is the behaviour we want and is cheaper than
+ * computing them separately.
+ */
+function signalVector(scene: number[], outfit: number[]): number[] | null {
+  const hasScene = scene.length > 0;
+  const hasOutfit = outfit.length > 0;
+
+  if (SIGNAL === 'scene') return hasScene ? scene : null;
+  if (SIGNAL === 'outfit') return hasOutfit ? outfit : null;
+
+  // 'both' — fall back gracefully when a photo has no legible person
+  if (hasScene && hasOutfit) {
+    const ws = Math.sqrt(1 - OUTFIT_WEIGHT);
+    const wo = Math.sqrt(OUTFIT_WEIGHT);
+    return [...scene.map((v) => v * ws), ...outfit.map((v) => v * wo)];
+  }
+  if (hasScene) return [...scene.map((v) => v * Math.sqrt(1 - OUTFIT_WEIGHT)), ...scene.map(() => 0)];
+  return null;
 }
 
 interface Segment {
@@ -166,7 +206,9 @@ function mergeAcrossCameras(segments: Segment[]): Segment[][] {
         if (score > best.score) best = { score, i, j };
       }
     }
-    if (best.score < MERGE_AT || best.i < 0) break;
+    if (best.i < 0) break;
+    // With an explicit target, keep merging the closest pair until we hit it
+    if (GROUPS ? groups.length <= GROUPS : best.score < MERGE_AT) break;
     groups[best.i] = [...groups[best.i], ...groups[best.j]];
     groups = groups.filter((_, idx) => idx !== best.j);
   }
@@ -176,16 +218,37 @@ function mergeAcrossCameras(segments: Segment[]): Segment[][] {
 async function main() {
   const rows = await prisma.asset.findMany({
     where: { type: 'PHOTO', isAvailable: true, isHidden: false, embeddedAt: { not: null } },
-    select: { id: true, filename: true, embedding: true },
+    select: { id: true, filename: true, embedding: true, outfitEmbedding: true },
     orderBy: { filename: 'asc' },
   });
 
-  const photos = rows.filter((r) => r.embedding.length > 0) as Photo[];
+  const photos: Photo[] = [];
+  let skipped = 0;
+  for (const row of rows) {
+    const vector = signalVector(row.embedding, row.outfitEmbedding);
+    if (!vector) {
+      skipped++;
+      continue;
+    }
+    photos.push({ id: row.id, filename: row.filename, embedding: vector });
+  }
+
   if (photos.length === 0) {
-    console.error('No embeddings found. Run `npm run embed` first.');
+    console.error(
+      SIGNAL === 'scene'
+        ? 'No embeddings found. Run `npm run embed` first.'
+        : 'No outfit signatures found. Run `npm run embed:outfits` first.'
+    );
     process.exit(1);
   }
-  console.log(`Segmenting ${photos.length} photos (threshold ${THRESHOLD}, merge ${MERGE_AT})\n`);
+
+  const withOutfit = rows.filter((r) => r.outfitEmbedding.length > 0).length;
+  console.log(
+    `Segmenting ${photos.length} photos · signal=${SIGNAL}` +
+      (SIGNAL === 'both' ? ` (outfit weight ${OUTFIT_WEIGHT})` : '') +
+      ` · threshold ${THRESHOLD} · ${GROUPS ? `forced ${GROUPS} groups` : `merge ${MERGE_AT}`}`
+  );
+  console.log(`  ${withOutfit}/${rows.length} photos have an outfit signature` + (skipped ? ` · ${skipped} skipped` : '') + '\n');
 
   const byCamera = new Map<string, Photo[]>();
   for (const photo of photos) {
@@ -226,24 +289,53 @@ async function main() {
     return;
   }
 
-  // Replace any previous visual proposal; leave host-named functions alone
+  // Discard the previous unpublished proposal — but never anything the host has
+  // published, which represents real curation work.
   const previous = await prisma.tag.findMany({
     where: { kind: 'FUNCTION', source: 'clip-cluster', isVisible: false },
     select: { id: true },
   });
   if (previous.length) {
     await prisma.tag.deleteMany({ where: { id: { in: previous.map((t) => t.id) } } });
-    console.log(`\nReplaced ${previous.length} previous unpublished visual candidate(s).`);
+    console.log(`\nReplaced ${previous.length} previous unpublished candidate(s).`);
+  }
+
+  const published = await prisma.tag.findMany({
+    where: { kind: 'FUNCTION', source: 'clip-cluster', isVisible: true },
+    select: { name: true, slug: true, _count: { select: { assets: true } } },
+  });
+  if (published.length) {
+    console.warn(
+      `\n  ⚠ ${published.length} visual candidate(s) are already published and were kept:\n` +
+        published.map((p) => `      ${p.name} (${p._count.assets} photos)`).join('\n') +
+        '\n    Photos in them will now also belong to the new candidates below, so the same\n' +
+        '    photograph can appear under two functions. Delete them in /admin, or delete the\n' +
+        '    new candidates, so each photo sits in exactly one.\n'
+    );
   }
 
   let created = 0;
   for (const [i, group] of groups.entries()) {
-    const label = `Scene ${i + 1}`;
-    const slug = slugify(`scene-${i + 1}-${group.span[0]}`, { lower: true, strict: true });
-    const tag = await prisma.tag.create({
-      data: {
+    // Slug from the member set: identical grouping re-runs to the same slug (so a
+    // re-run is idempotent), and a different grouping can never collide with an
+    // existing tag the way a positional "scene-3-<first file>" could.
+    const fingerprint = createHash('sha1')
+      .update(
+        group.photos
+          .map((p) => p.id)
+          .sort()
+          .join(',')
+      )
+      .digest('hex')
+      .slice(0, 8);
+    const slug = `scene-${fingerprint}`;
+
+    const tag = await prisma.tag.upsert({
+      where: { slug },
+      update: { sortOrder: i, coverAssetId: group.photos[0].id },
+      create: {
         kind: 'FUNCTION',
-        name: label,
+        name: `Scene ${i + 1}`,
         slug,
         isVisible: false,
         source: 'clip-cluster',
