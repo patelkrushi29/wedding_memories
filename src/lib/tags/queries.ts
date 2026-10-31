@@ -193,17 +193,101 @@ export async function getFunctionBySlug(slug: string) {
   };
 }
 
-/** First page of a function's media, oldest-first so it reads as a sequence. */
-export async function getFunctionAssets(tagId: string, take = 60): Promise<Asset[]> {
-  const rows = await prisma.assetTag.findMany({
-    where: { tagId, asset: GUEST_ASSET_WHERE },
-    orderBy: { asset: { takenAt: 'asc' } },
-    take,
-    include: {
-      asset: { omit: GUEST_ASSET_OMIT, include: { album: { select: { title: true, slug: true } } } },
-    },
+/** Same order the API cursors through, so page 2 continues page 1 exactly. */
+export const FUNCTION_ORDER = [{ takenAt: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }] as const;
+
+/**
+ * Near-identical frames folded behind their best take (see scripts/pick-best.ts).
+ * A quality MOMENT tag's AssetTag rows are exactly the folded frames; the lead
+ * carries no row, so "not folded" is a plain none-filter.
+ */
+export const NOT_FOLDED = { tags: { none: { tag: { kind: 'MOMENT', source: 'quality' } } } } as const;
+
+/** Attach `burst` ({ slug, size }) to any asset that leads a folded burst. */
+export async function withBursts(assets: Asset[]): Promise<Asset[]> {
+  if (assets.length === 0) return assets;
+  const moments = await prisma.tag.findMany({
+    where: { kind: 'MOMENT', source: 'quality', coverAssetId: { in: assets.map((a) => a.id) } },
+    select: { slug: true, coverAssetId: true, _count: { select: { assets: true } } },
   });
-  return rows.map((r) => toClientAsset(attachMediaUrls(r.asset) as AttachedAsset));
+  if (moments.length === 0) return assets;
+  const byLead = new Map(moments.map((m) => [m.coverAssetId!, { slug: m.slug, size: m._count.assets + 1 }]));
+  return assets.map((a) => (byLead.has(a.id) ? { ...a, burst: byLead.get(a.id)! } : a));
+}
+
+/** First page of a function's media, oldest-first, bursts folded. */
+export async function getFunctionAssets(tagId: string, take = 60): Promise<{ items: Asset[]; total: number }> {
+  const where = { ...GUEST_ASSET_WHERE, AND: [NOT_FOLDED, { tags: { some: { tagId } } }] };
+  const [rows, total] = await Promise.all([
+    prisma.asset.findMany({
+      where,
+      orderBy: [...FUNCTION_ORDER],
+      take,
+      omit: GUEST_ASSET_OMIT,
+      include: { album: { select: { title: true, slug: true } } },
+    }),
+    prisma.asset.count({ where }),
+  ]);
+  const items = rows.map((r) => toClientAsset(attachMediaUrls(r) as AttachedAsset));
+  return { items: await withBursts(items), total };
+}
+
+/** Evenly spaced picks from an ordered list — the fallback "highlights". */
+function spread<T>(list: T[], n: number): T[] {
+  if (list.length <= n) return list;
+  return Array.from({ length: n }, (_, i) => list[Math.floor(((i + 0.5) * list.length) / n)]);
+}
+
+/**
+ * The best of one function, in shooting order. Uses the picker's highlights when
+ * it has run; otherwise an even spread across the function's timeline, which is
+ * a far better story than "the first 12".
+ */
+export async function getFunctionHighlights(tagId: string, limit = 12): Promise<Asset[]> {
+  const base = { ...GUEST_ASSET_WHERE, type: 'PHOTO', tags: { some: { tagId } } };
+  let rows = await prisma.asset.findMany({
+    where: { ...base, isHighlight: true },
+    orderBy: [...FUNCTION_ORDER],
+    omit: GUEST_ASSET_OMIT,
+  });
+  if (rows.length === 0) {
+    const ids = await prisma.asset.findMany({
+      where: { ...GUEST_ASSET_WHERE, type: 'PHOTO', AND: [NOT_FOLDED, { tags: { some: { tagId } } }] },
+      orderBy: [...FUNCTION_ORDER],
+      select: { id: true },
+    });
+    const picked = spread(ids, limit).map((r) => r.id);
+    rows = await prisma.asset.findMany({
+      where: { id: { in: picked } },
+      orderBy: [...FUNCTION_ORDER],
+      omit: GUEST_ASSET_OMIT,
+    });
+  }
+  return spread(rows, limit).map((r) => toClientAsset(attachMediaUrls(r) as AttachedAsset));
+}
+
+export interface ReelSlide extends Asset {
+  functionName: string;
+  functionSlug: string;
+}
+
+/** "Watch the weekend": highlights across every published function, in order. */
+export async function getWeekendReel(perFunction = 5): Promise<ReelSlide[]> {
+  const functions = await prisma.tag.findMany({
+    where: { kind: 'FUNCTION', isVisible: true },
+    orderBy: [{ startAt: 'asc' }, { sortOrder: 'asc' }],
+    select: { id: true, name: true, slug: true },
+  });
+  const parts = await Promise.all(
+    functions.map(async (fn) =>
+      (await getFunctionHighlights(fn.id, perFunction)).map((a) => ({
+        ...a,
+        functionName: fn.name,
+        functionSlug: fn.slug,
+      }))
+    )
+  );
+  return parts.flat();
 }
 
 /** Totals for the header line: "3 days · 5 functions · 8,412". */

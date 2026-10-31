@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { attachMediaUrls } from '@/lib/storage/assetUrls';
-import { GUEST_ASSET_OMIT, toClientAsset } from '@/lib/tags/queries';
+import { GUEST_ASSET_OMIT, NOT_FOLDED, toClientAsset, withBursts } from '@/lib/tags/queries';
 import type { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '60') || 60));
   const ids = searchParams.get('ids');
   const cursor = searchParams.get('cursor');
+  // fold=1 hides near-identical frames behind their best take; burst=<slug> lists every take of one moment.
+  const fold = searchParams.get('fold') === '1';
+  const burstSlug = searchParams.get('burst');
   const skip = (page - 1) * limit;
 
   const where: Prisma.AssetWhereInput = {
@@ -35,9 +38,25 @@ export async function GET(request: NextRequest) {
     if (album) where.albumId = album.id;
   }
 
-  if (tagSlug) {
-    where.tags = { some: { tag: { slug: tagSlug, isVisible: true } } };
+  const and: Prisma.AssetWhereInput[] = [];
+  if (tagSlug) and.push({ tags: { some: { tag: { slug: tagSlug, isVisible: true } } } });
+  if (fold) and.push(NOT_FOLDED);
+  if (burstSlug) {
+    const moment = await prisma.tag.findUnique({
+      where: { slug: burstSlug },
+      select: { kind: true, source: true, coverAssetId: true },
+    });
+    if (!moment || moment.kind !== 'MOMENT') {
+      return NextResponse.json({ items: [], page, limit, total: 0, hasMore: false, nextCursor: null });
+    }
+    and.push({
+      OR: [
+        { tags: { some: { tag: { slug: burstSlug } } } },
+        ...(moment.coverAssetId ? [{ id: moment.coverAssetId }] : []),
+      ],
+    });
   }
+  if (and.length) where.AND = and;
 
   // Stable ordering: takenAt (nulls last), then id as tiebreaker so cursoring is deterministic
   let orderBy: Prisma.AssetOrderByWithRelationInput[];
@@ -72,9 +91,11 @@ export async function GET(request: NextRequest) {
   const nextCursor = items.length === limit ? items[items.length - 1].id : null;
   const hasMore = useCursor ? nextCursor !== null : skip + items.length < total;
 
+  const shaped = items.map((asset) => toClientAsset(attachMediaUrls(asset)));
+
   return NextResponse.json({
     // Trimmed to the client shape: no internal paths, flags or embeddings.
-    items: items.map((asset) => toClientAsset(attachMediaUrls(asset))),
+    items: fold ? await withBursts(shaped) : shaped,
     page,
     limit,
     total,

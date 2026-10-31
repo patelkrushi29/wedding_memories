@@ -17,6 +17,8 @@ export interface Asset {
   takenAt?: string | null;
   blurDataUrl?: string | null;
   album?: { title: string; slug: string } | null;
+  /** Set when this frame leads a folded burst of near-identical shots. */
+  burst?: { slug: string; size: number } | null;
 }
 
 export interface AssetListResponse {
