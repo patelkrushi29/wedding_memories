@@ -1,25 +1,33 @@
 import type { Metadata } from 'next';
-import { Newsreader, Instrument_Sans, IBM_Plex_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 
-const newsreader = Newsreader({
-  subsets: ['latin'],
-  weight: ['300', '400'],
-  style: ['normal', 'italic'],
+// Self-hosted (from @fontsource packages) rather than next/font/google, so a
+// build never depends on reaching Google Fonts and guests make no third-party request.
+// Paths must be string literals — the font loader reads them at compile time.
+
+const newsreader = localFont({
+  src: [
+    { path: '../../node_modules/@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2', style: 'normal' },
+    { path: '../../node_modules/@fontsource-variable/newsreader/files/newsreader-latin-wght-italic.woff2', style: 'italic' },
+  ],
+  weight: '200 800',
   variable: '--font-serif',
   display: 'swap',
 });
 
-const instrumentSans = Instrument_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
+const instrumentSans = localFont({
+  src: '../../node_modules/@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2',
+  weight: '400 700',
   variable: '--font-sans',
   display: 'swap',
 });
 
-const plexMono = IBM_Plex_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
+const plexMono = localFont({
+  src: [
+    { path: '../../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2', weight: '400' },
+    { path: '../../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2', weight: '500' },
+  ],
   variable: '--font-mono',
   display: 'swap',
 });
