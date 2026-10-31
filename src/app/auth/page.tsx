@@ -23,8 +23,12 @@ export default function AuthPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        router.push('/');
+        // Only same-site paths, so a crafted ?next= can't bounce a guest elsewhere.
+        const next = new URLSearchParams(window.location.search).get('next');
+        router.push(next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
         router.refresh();
+      } else if (res.status === 429 || res.status === 503) {
+        setError(data.error);
       } else {
         setError('That password does not match.');
       }
