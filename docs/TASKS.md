@@ -1,6 +1,6 @@
 # Tasks — current status and next action
 
-**Updated:** 2026-07-25. Read `CLAUDE.md` first, then this file. The full phase plan is
+**Updated:** 2026-10-31. Read `CLAUDE.md` first, then this file. The full phase plan is
 `docs/PLAN.md`; history is `docs/CHANGELOG.md`.
 
 ---
@@ -12,6 +12,20 @@
 
 Live: <https://wedding-memories-sage.vercel.app> · Host tools: `/admin` (local dev only until the
 admin secret is set).
+
+---
+
+## URGENT — security (2026-10-31)
+
+Malware was committed in `a91fadb` and ran on every Vercel build since 2026-07-26. See
+CHANGELOG session 8. Until these are done, assume every secret it could read is stolen.
+
+| # | Action |
+|---|---|
+| S1 | **Treat the Windows PC that made `a91fadb` as compromised.** Look for `config.bat` in this project and others; scan; ideally reinstall. Do the steps below from a different, clean device. |
+| S2 | **Rotate every secret**: Supabase database password, Cloudflare R2 access keys, Vercel tokens, GitHub password + revoke sessions/tokens/SSH keys, and passwords saved in that PC's browser. Then update Vercel env vars. |
+| S3 | Check other repos on that PC and GitHub account for the same injection (search config files for `_0x` or `global.i=`). |
+| S4 | Don't run `npm install` / `npm run dev` for this project on that PC until S1 is done — the source is on the machine and re-injects. |
 
 ---
 
@@ -40,8 +54,7 @@ In order. Each is described in `docs/PLAN.md`.
 2. **Phase C1–C4** — detection, clustering, the face wall, "That's me". The single highest-value
    feature in the product.
 3. **Phase D1–D2** — quality culling and group size. Both cheap, both immediately visible.
-4. **Phase F1** — single-photo save via the share sheet. Small, and currently iOS guests cannot
-   save a photo to their camera roll at all.
+4. ~~**Phase F1** — single-photo save via the share sheet.~~ Done 2026-10-31; needs the R2 CORS rule in `DEPLOY.md`.
 
 Do **not** start Phase C or D against the placeholder library. Clustering 282 low-resolution frames
 with identical timestamps proves nothing.
@@ -50,22 +63,7 @@ with identical timestamps proves nothing.
 
 ## Doc debt
 
-The redesign deleted a lot of code, and these reference docs still describe it. They are actively
-misleading — `STORAGE.md` documents a `StorageProvider` interface that no longer exists, and
-several describe the old gold/white design and SQLite.
-
-`ARCHITECTURE.md` · `API.md` · `COMPONENTS.md` · `CONVENTIONS.md` · `DATABASE.md` · `STORAGE.md` ·
-`AUTH.md` · `MEDIA-IMPORT.md` · `TESTING.md` · `WORKFLOWS.md`
-
-**Recommendation:** delete them. Their accurate content already lives in `.claude/rules/*`, which is
-better placed — those files load automatically when the matching code is edited, so they cannot be
-forgotten the way a doc folder can. That would leave a maintainable set: `CLAUDE.md`, `PLAN.md`,
-`TASKS.md`, `CHANGELOG.md`, `DECISIONS.md`, `DEPLOY.md`.
-
-Not done unilaterally — say the word and it takes one commit.
-
-`CHANGELOG.md` and `DECISIONS.md` are historical records; references to SQLite and albums in those
-are correct and should stay.
+Resolved — the stale reference docs were deleted in `f037522`.
 
 ---
 

@@ -24,6 +24,7 @@ Settled 2026-07-25 with the owner. Do not quietly reverse these.
 
 | Decision | Consequence |
 |---|---|
+| **Main goal: everyone leaves with their best photos** (2026-10-31) | Rank, fold bursts, surface "your best" and a highlights strip per function, and help guests make a post or collage they share themselves from their own device. See Phase G in `docs/PLAN.md`. |
 | **One wedding, product quality** | Single-tenant schema (no Wedding root entity, no host accounts) but the design and polish are held to product standard. |
 | **No feed, no comments, no like counts, no profiles** | The heart is a *private* save marker on the visitor's own device. Nothing a guest does is broadcast to another guest. |
 | **Face wall before selfie** | Guests find themselves by tapping a face, which needs no biometric consent. A selfie is the escape hatch, never the toll gate. |

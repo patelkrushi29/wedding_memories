@@ -91,6 +91,56 @@ Cheap relative to their impact, per the research.
 - **F3** Family view link — `/view/[FAMILY_VIEW_TOKEN]`, passwordless for parents.
 - **F4** Close the `/api/*` auth gap: guest-facing routes currently answer anyone with the URL.
 
+## Phase G — Your best photos, ready to post
+
+**Added 2026-10-31 by the owner. This is now the product's main goal:** give every guest their
+best pictures, and help them share those on socials. Finding yourself (Phase C) is the means;
+leaving with a handful of great photos and a post you're proud of is the end.
+
+| Step | Work | Depends on |
+|---|---|---|
+| G1 | **Best-of ranking** per photo: sharpness, eyes open, faces well lit, not a near-duplicate. Within a burst of near-identical frames, pick one and fold the rest behind it. | D1 culling, C1 faces |
+| G2 | **"Your best"** — the top photos of *you*, a short ranked set (12–20), not a 900-photo grid. The default screen once a guest has tapped "That's me". | C4, G1 |
+| G3 | **Best of each function** — a highlights strip at the top of every function, so a guest who never claims a face still sees the good ones first. | G1 |
+| G4 | **Make a post** — pick 2–10 photos (pre-filled from "Your best"), choose a layout (Instagram carousel 4:5, story 9:16, grid collage), export as images to the share sheet. Rendered on the device; nothing is posted by us. | F1 share sheet |
+| G5 | **Group picks** — "you and Meera", "your table", "your family": co-occurrence sets that make natural posts. | C2 clusters |
+| G6 | Best group shot from a burst, and later **best-face merge** (swap in a closed-eye person's open-eye face from a neighbouring frame). Hard; do last. | C1, G1 |
+
+Product notes:
+- Sharing is the **guest's own action** from their own device. Still no public pages, no
+  discoverability, no feed — the "Refused" list below stands. The couple gets a switch to turn
+  "Make a post" off.
+- A collage carries no watermark or app branding unless the couple opts in.
+
+---
+
+## Later product — the same idea for anyone's photo library
+
+**Backlog, not this app.** Ship the wedding gallery first; revisit once G1–G5 work on a real
+wedding. The owner's motivating example is a widely shared request (Sep 2026) for an AI that sits
+on top of Google Photos / the phone's camera roll and:
+
+- picks the best of 20 group photos
+- removes blurry and closed-eye shots
+- merges everyone's best face into one photo
+- clears duplicates, junk screenshots and temporary photos (into a hidden holding folder for a
+  while, never straight to deletion)
+- builds a great album from a trip automatically
+- sends everyone the best photos they're in
+- answers searches like "best photos of me and Amruta in Italy"
+
+What carries over from the wedding app: best-of ranking (G1), face clustering (C), CLIP search
+(D3), burst/duplicate folding (D1), "send everyone their photos" (Phase C + F), collage export (G4).
+
+What is genuinely new, and why it is a separate product:
+- **Access.** Google Photos' API stopped giving third-party apps read access to a user's whole
+  library in 2025 (apps now only see photos the user picks). A full-library version needs a
+  native iOS/Android app reading the camera roll on the device.
+- **On-device processing** for privacy and cost — the library is the user's whole life, not one
+  event.
+- **Deletion is destructive** — needs a reversible holding area and very conservative defaults.
+- Multi-tenant accounts, which this repo deliberately is not.
+
 ---
 
 ## Backlog

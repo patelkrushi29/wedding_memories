@@ -4,6 +4,32 @@ Chronological record of every session's work, decisions made, and code changes. 
 
 ---
 
+## Session 8 — 2026-10-31 — Malware removed, guest access locked down, saving fixed
+
+### Security incident
+
+Commit `a91fadb` (2026-07-26) carried malware unrelated to its message: ~32 KB of obfuscated
+JavaScript appended to `tailwind.config.js` behind a run of spaces, plus a `.gitignore` edit that
+stopped ignoring `.env` and started ignoring `config.bat`. It matches a publicly reported
+campaign against Node.js developers. Next.js evaluates the Tailwind config on every `next dev`
+and `next build`, so it ran on the machine that made the commit and on **every Vercel build since
+2026-07-26**, where the production env vars (database URL, R2 keys) were readable. Removed in a
+standalone commit on `main`; owner actions are in `TASKS.md`.
+
+### What was done
+
+- Guest cookie is now an HMAC keyed by `GUEST_PASSWORD` (was a forgeable literal).
+- `/api/*` requires a guest session (401 otherwise); login throttled per IP.
+- Saving actually saves: share sheet on phones (→ Photos on iOS), real download elsewhere.
+  The old `<a download>` was ignored cross-origin and just opened the image.
+- Zoom loads the full-resolution original and pans.
+- Viewer hooks-order bug fixed; failed loads show a retry; saves in one synced store.
+- Fonts self-hosted; eslint clean.
+- Plan: Phase G (best photos + make a post) is now the product's main goal; the
+  whole-photo-library idea recorded as a later, separate product.
+
+---
+
 ## Session 7 — 2026-07-25 — Darkroom redesign, day → function spine
 
 ### What was done

@@ -211,3 +211,23 @@ R2 storage is ~$0.015/GB/month; egress to Cloudflare CDN is typically **no R2 eg
 | Cloudinary? | Skip for this library size; use **R2 + CDN**. |
 | Local SQLite? | **Deprecated for new work**; not used in production. |
 | Two access modes? | Password + family link (to be built in C5). |
+
+## R2 CORS rule (needed for "Save to Photos" and Download)
+
+The viewer fetches the original from R2 in the browser so it can hand the bytes to the share
+sheet or save them as a file. The bucket must allow that. Cloudflare dashboard → R2 → the bucket
+→ Settings → CORS policy:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://wedding-memories-sage.vercel.app", "http://localhost:3000"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "MaxAgeSeconds": 86400
+  }
+]
+```
+
+Add the custom domain here too once there is one. Without the rule, Save falls back to opening
+the photo in a new tab.
