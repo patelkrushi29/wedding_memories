@@ -68,6 +68,7 @@ export default function HostPage() {
   }, [authHeaders]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- host-only page; load on mount and when the secret changes
     load();
   }, [load]);
 

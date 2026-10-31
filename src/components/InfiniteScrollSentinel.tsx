@@ -6,17 +6,21 @@ interface Props {
   onLoadMore: () => void;
   hasMore: boolean;
   loading: boolean;
+  /** Set when the last page failed; shows a retry instead of spinning forever. */
+  failed?: boolean;
 }
 
 /** Invisible sentinel that triggers onLoadMore when scrolled near the viewport. */
-export function InfiniteScrollSentinel({ onLoadMore, hasMore, loading }: Props) {
+export function InfiniteScrollSentinel({ onLoadMore, hasMore, loading, failed }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const cbRef = useRef(onLoadMore);
-  cbRef.current = onLoadMore;
+  useEffect(() => {
+    cbRef.current = onLoadMore;
+  }, [onLoadMore]);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el || !hasMore) return;
+    if (!el || !hasMore || failed) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -26,15 +30,19 @@ export function InfiniteScrollSentinel({ onLoadMore, hasMore, loading }: Props) 
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, loading]);
+  }, [hasMore, loading, failed]);
 
   if (!hasMore) return null;
 
   return (
-    <div ref={ref} className="py-8 flex justify-center">
-      {loading && (
-        <div className="h-6 w-6 rounded-full border-2 border-[#c9a96e] border-t-transparent animate-spin" />
-      )}
+    <div ref={ref} className="flex justify-center py-8">
+      {failed ? (
+        <button onClick={() => cbRef.current()} className="mono mono-on">
+          Couldn&rsquo;t load more · Try again
+        </button>
+      ) : loading ? (
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-halide border-t-transparent" />
+      ) : null}
     </div>
   );
 }

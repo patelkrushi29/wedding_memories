@@ -1,48 +1,25 @@
 'use client';
 
 import { Heart } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { toggleSaved, useIsSaved } from '@/lib/savedStore';
 
-const STORAGE_KEY = 'wedding-gallery-selected-assets';
-
-export function FavoriteButton({
-  assetId,
-  className,
-  size = 'default',
-}: {
+interface Props {
   assetId: string;
   className?: string;
   size?: 'default' | 'sm';
-}) {
-  const [selected, setSelected] = useState(false);
+}
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const ids: string[] = JSON.parse(stored);
-      setSelected(ids.includes(assetId));
-    }
-  }, [assetId]);
-
-  const toggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const ids: string[] = stored ? JSON.parse(stored) : [];
-
-    let updated: string[];
-    if (ids.includes(assetId)) {
-      updated = ids.filter((id) => id !== assetId);
-    } else {
-      updated = [...ids, assetId];
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    setSelected(updated.includes(assetId));
-  };
+/** The private save marker. No counts, no server record — see savedStore. */
+export function FavoriteButton({ assetId, className, size = 'default' }: Props) {
+  const selected = useIsSaved(assetId);
 
   return (
     <button
-      onClick={toggle}
+      onClick={(e) => {
+        e.stopPropagation();
+        toggleSaved(assetId);
+      }}
       className={cn(
         'rounded-full transition-colors',
         size === 'sm' ? 'p-1' : 'p-2',
@@ -52,6 +29,7 @@ export function FavoriteButton({
         className
       )}
       title={selected ? 'Remove from saved' : 'Save'}
+      aria-label={selected ? 'Remove from saved' : 'Save'}
       aria-pressed={selected}
     >
       <Heart

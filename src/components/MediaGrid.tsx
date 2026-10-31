@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { MediaCard } from './MediaCard';
 import { MediaViewerModal } from './MediaViewerModal';
 import { InfiniteScrollSentinel } from './InfiniteScrollSentinel';
@@ -17,6 +17,8 @@ interface Props {
 /**
  * Paginated media grid with an in-place viewer. Owns its own cursor so any
  * surface (function, person, facet result) can reuse it.
+ *
+ * A new filter should remount it (`key={query}`) rather than reset it in place.
  */
 export function MediaGrid({ initialAssets, total, query, emptyMessage }: Props) {
   const [assets, setAssets] = useState<Asset[]>(initialAssets);
@@ -24,19 +26,19 @@ export function MediaGrid({ initialAssets, total, query, emptyMessage }: Props) 
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const cursorRef = useRef<string | null>(initialAssets.at(-1)?.id ?? null);
   const [hasMore, setHasMore] = useState(initialAssets.length < total);
-
-  // A new query (different filter) resets the list
-  useEffect(() => {
-    setAssets(initialAssets);
-    cursorRef.current = initialAssets.at(-1)?.id ?? null;
-    setHasMore(initialAssets.length < total);
-  }, [initialAssets, total]);
+  const [failed, setFailed] = useState(false);
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore || !cursorRef.current) return;
     setLoading(true);
+    setFailed(false);
     try {
       const res = await fetch(`/api/assets?${query}&limit=60&cursor=${cursorRef.current}`);
+      if (res.status === 401) {
+        window.location.href = `/auth?next=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setAssets((prev) => {
         const seen = new Set(prev.map((a) => a.id));
@@ -45,7 +47,8 @@ export function MediaGrid({ initialAssets, total, query, emptyMessage }: Props) 
       cursorRef.current = data.nextCursor ?? null;
       setHasMore(Boolean(data.hasMore) && Boolean(data.nextCursor));
     } catch {
-      setHasMore(false);
+      // Keep hasMore so the sentinel can offer a retry instead of silently ending.
+      setFailed(true);
     } finally {
       setLoading(false);
     }
@@ -74,7 +77,7 @@ export function MediaGrid({ initialAssets, total, query, emptyMessage }: Props) 
         ))}
       </div>
 
-      <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loading} />
+      <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loading} failed={failed} />
 
       {currentAsset && (
         <MediaViewerModal

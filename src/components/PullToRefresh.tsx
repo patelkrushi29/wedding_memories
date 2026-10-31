@@ -12,10 +12,13 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
   const [pull, setPull] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const startY = useRef<number | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (window.scrollY <= 0 && !refreshing) startY.current = e.touches[0].clientY;
-    else startY.current = null;
+    if (window.scrollY <= 0 && !refreshing) {
+      startY.current = e.touches[0].clientY;
+      setDragging(true);
+    } else startY.current = null;
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
@@ -30,6 +33,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
 
   const onTouchEnd = () => {
     startY.current = null;
+    setDragging(false);
     if (pull >= TRIGGER && !refreshing) {
       setRefreshing(true);
       setPull(48);
@@ -49,11 +53,11 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
         className="flex items-end justify-center overflow-hidden"
         style={{
           height: pull,
-          transition: startY.current === null ? 'height 0.25s ease' : 'none',
+          transition: dragging ? 'none' : 'height 0.25s ease',
         }}
       >
         <RefreshCw
-          className={`h-5 w-5 mb-3 text-[#c9a96e] ${refreshing ? 'animate-spin' : ''}`}
+          className={`h-5 w-5 mb-3 text-halide ${refreshing ? 'animate-spin' : ''}`}
           style={{
             transform: refreshing ? undefined : `rotate(${pull * 2.5}deg)`,
             opacity: Math.min(1, pull / TRIGGER),
