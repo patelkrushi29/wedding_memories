@@ -71,7 +71,9 @@ Dark, photographic, one accent. Full token list and type roles: `.claude/rules/c
 - Never accept a raw file path from the client — only asset ids. The server resolves keys.
 - Never expose `originalPath` / `thumbnailPath` / `viewerPath` / `posterPath`. Use
   `attachMediaUrls()`.
-- Auth cookie `wg-auth=authenticated`, httpOnly, Secure in production.
+- Auth cookie `wg-auth` holds an HMAC keyed by `GUEST_PASSWORD` (`src/lib/auth/guestToken.ts`), httpOnly, Secure in production. Never compare it to a literal.
+- `/api/*` requires that cookie (401 otherwise) except `/api/auth/*`; `/api/admin/*` uses its bearer token.
+- **Config files are an attack surface.** `tailwind.config.js` was injected with malware once (2026-07). Before committing, look for code after the closing `};` or very long lines in any `*.config.*` file.
 - Admin routes use `isAdminAuthorized()` and refuse the placeholder secret `change-me`.
 
 ### Delivery
@@ -93,11 +95,9 @@ Dark, photographic, one accent. Full token list and type roles: `.claude/rules/c
 
 | # | Gap | Where |
 |---|---|---|
-| 1 | `/api/*` bypasses the password gate — anyone with a URL can read the gallery JSON | `src/proxy.ts` |
 | 2 | Face pipeline not built: `/people` shows a holding state, no "That's me", no "N of you" | `src/lib/people/tiers.ts` has the tiering + threshold ready |
 | 3 | Derived facets absent: group size, objects/scenes, quality culling, sub-moments | needs CLIP + blur/dupe detection |
-| 4 | No bulk download; iOS cannot save to the camera roll from a plain link | needs `navigator.share` + a signed zip |
-| 5 | No error boundaries — a failed fetch reads as an empty gallery | `error.tsx` per route |
+| 4 | No bulk download (single-photo Save to Photos works via the share sheet) | needs a signed zip |
 | 6 | `GUEST_PASSWORD` and `ADMIN_REINDEX_SECRET` are still placeholders in Vercel | owner action |
 | 7 | Voice notes, venue wall, post-event nudge, "a year ago today" not started | roadmap |
 

@@ -39,8 +39,12 @@ import { prisma } from '@/lib/db';  // always
 ```
 
 ## Auth
-`/api/*` is excluded from the `src/proxy.ts` password gate, so **any guest-facing route is
-effectively public to anyone with the URL** — a known gap, tracked in CLAUDE.md.
+`src/proxy.ts` requires a valid guest session for every `/api/*` route except `/api/auth/*`,
+and answers 401 JSON (not a redirect) so client code can tell signed-out from empty.
+`/api/admin/*` skips the guest gate and authenticates itself.
+
+Return the trimmed client shape (`toClientAsset(attachMediaUrls(row))`) and use
+`omit: GUEST_ASSET_OMIT` — never send embeddings or internal flags to a browser.
 
 Admin routes must call `isAdminAuthorized(request)` from `@/lib/adminAuth`: open in dev,
 `Bearer ADMIN_REINDEX_SECRET` in production, and it refuses the placeholder value `change-me`.
