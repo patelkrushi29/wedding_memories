@@ -71,7 +71,7 @@ export function MediaGrid({ initialAssets, total, query, emptyMessage }: Props) 
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-0.5 sm:grid-cols-4 sm:gap-1.5 lg:grid-cols-5">
+      <div className="grid grid-cols-3 gap-[3px] px-[3px] sm:grid-cols-4 sm:gap-2 sm:px-0 lg:grid-cols-5">
         {assets.map((asset, index) => (
           <MediaCard key={asset.id} asset={asset} onClick={() => setViewerIndex(index)} />
         ))}

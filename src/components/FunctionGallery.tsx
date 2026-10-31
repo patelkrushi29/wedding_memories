@@ -8,6 +8,8 @@ import type { Asset } from '@/types/asset';
 interface Props {
   slug: string;
   initialAssets: Asset[];
+  /** Count after folding bursts — what the grid will actually page through. */
+  initialTotal: number;
   photoCount: number;
   videoCount: number;
 }
@@ -20,10 +22,10 @@ interface LaneData {
 }
 
 /** Function media with photo/video lanes. Video is a filter, never a separate tab. */
-export function FunctionGallery({ slug, initialAssets, photoCount, videoCount }: Props) {
+export function FunctionGallery({ slug, initialAssets, initialTotal, photoCount, videoCount }: Props) {
   const [lane, setLane] = useState<Lane>('');
   const [loaded, setLoaded] = useState<Partial<Record<Lane, LaneData>>>({
-    '': { assets: initialAssets, total: photoCount + videoCount },
+    '': { assets: initialAssets, total: initialTotal },
   });
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState(false);
@@ -38,7 +40,7 @@ export function FunctionGallery({ slug, initialAssets, photoCount, videoCount }:
     const req = ++requestRef.current;
     setSwitching(true);
     try {
-      const res = await fetch(`/api/assets?function=${slug}&type=${next}&sort=oldest&limit=60`);
+      const res = await fetch(`/api/assets?function=${slug}&type=${next}&sort=oldest&fold=1&limit=60`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (req !== requestRef.current) return;
@@ -51,12 +53,12 @@ export function FunctionGallery({ slug, initialAssets, photoCount, videoCount }:
   };
 
   const current = loaded[lane];
-  const query = `function=${slug}&sort=oldest${lane ? `&type=${lane}` : ''}`;
+  const query = `function=${slug}&sort=oldest&fold=1${lane ? `&type=${lane}` : ''}`;
 
   return (
     <>
       {videoCount > 0 && (
-        <div className="flex gap-2 overflow-x-auto scrollbar-none px-5 sm:px-0 pb-4">
+        <div className="flex gap-2 overflow-x-auto scrollbar-none px-5 md:px-0 pb-4">
           <button onClick={() => choose('')} className={cn('chip', lane === '' && 'chip-on')}>
             Everything <b>{(photoCount + videoCount).toLocaleString()}</b>
           </button>
@@ -72,7 +74,7 @@ export function FunctionGallery({ slug, initialAssets, photoCount, videoCount }:
       {error ? (
         <div className="py-16 text-center">
           <p className="text-sm text-ash">These didn&rsquo;t load.</p>
-          <button onClick={() => choose(lane)} className="mono mono-on mt-3">
+          <button onClick={() => choose(lane)} className="eyebrow eyebrow-on mt-3">
             Try again
           </button>
         </div>
@@ -81,9 +83,9 @@ export function FunctionGallery({ slug, initialAssets, photoCount, videoCount }:
           <MediaGrid key={query} initialAssets={current.assets} total={current.total} query={query} />
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-0.5 sm:grid-cols-4 sm:gap-1.5 lg:grid-cols-5">
+        <div className="grid grid-cols-3 gap-[3px] px-[3px] sm:grid-cols-4 sm:gap-2 sm:px-0 lg:grid-cols-5">
           {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="aspect-square animate-pulse bg-plate sm:rounded-[6px]" />
+            <div key={i} className="aspect-[4/5] animate-pulse bg-plate sm:rounded-[10px]" />
           ))}
         </div>
       )}

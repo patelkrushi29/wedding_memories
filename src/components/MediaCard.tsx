@@ -1,5 +1,6 @@
 'use client';
 
+import { Layers } from 'lucide-react';
 import { formatDuration } from '@/lib/utils';
 import type { Asset } from '@/types/asset';
 
@@ -9,8 +10,9 @@ interface MediaCardProps {
 }
 
 /**
- * A bare thumbnail. No hover chrome by design — saving and downloading live in
- * the viewer, where there's room for them and a thumb can reach them.
+ * A bare thumbnail. Saving and sharing live in the viewer, where there's room
+ * for them and a thumb can reach them. A folded burst shows how many takes sit
+ * behind this one.
  */
 export function MediaCard({ asset, onClick }: MediaCardProps) {
   const isVideo = asset.type === 'VIDEO';
@@ -18,16 +20,13 @@ export function MediaCard({ asset, onClick }: MediaCardProps) {
   return (
     <button
       onClick={onClick}
-      className="group relative block aspect-square overflow-hidden bg-plate sm:rounded-[6px]"
+      className="group relative block aspect-[4/5] overflow-hidden bg-plate sm:rounded-[10px]"
       style={
         asset.blurDataUrl
-          ? {
-              backgroundImage: `url(${asset.blurDataUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }
+          ? { backgroundImage: `url(${asset.blurDataUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
           : undefined
       }
+      aria-label={isVideo ? 'Play film' : asset.burst ? `Open photo, best of ${asset.burst.size} takes` : 'Open photo'}
     >
       <img
         src={asset.thumbnailUrl}
@@ -35,17 +34,21 @@ export function MediaCard({ asset, onClick }: MediaCardProps) {
         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
         loading="lazy"
       />
+      {asset.burst && (
+        <span className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11.5px] font-semibold text-paper backdrop-blur-sm">
+          <Layers className="h-3 w-3" strokeWidth={2.2} />
+          {asset.burst.size}
+        </span>
+      )}
       {isVideo && (
         <>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-paper/60 bg-black/25 text-[11px] text-paper backdrop-blur-sm">
+          <span className="absolute inset-0 flex items-center justify-center">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-[12px] text-paper backdrop-blur-sm">
               ▶
             </span>
-          </div>
+          </span>
           {asset.durationSeconds ? (
-            <span className="numeral absolute bottom-1 right-1.5 text-paper">
-              {formatDuration(asset.durationSeconds)}
-            </span>
+            <span className="meta absolute bottom-1.5 right-2 text-paper">{formatDuration(asset.durationSeconds)}</span>
           ) : null}
         </>
       )}

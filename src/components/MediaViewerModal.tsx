@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useCallback, useRef, useState } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { FavoriteButton } from './FavoriteButton';
 import { SaveToDeviceButton } from './SaveToDeviceButton';
+import { AddToPostButton } from './AddToPostButton';
 import type { Asset } from '@/types/asset';
 
 interface MediaViewerModalProps {
@@ -47,6 +49,9 @@ export function MediaViewerModal({
   const [zoomed, setZoomed] = useState(false);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [panning, setPanning] = useState(false);
+  // Other takes of the same moment, when this photo leads a folded burst.
+  const [takes, setTakes] = useState<Asset[]>([]);
+  const [takeId, setTakeId] = useState<string | null>(null);
   const panStart = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const lastTap = useRef(0);
@@ -95,6 +100,8 @@ export function MediaViewerModal({
     setDragY(0);
     setZoomed(false);
     setPan({ x: 0, y: 0 });
+    setTakeId(null);
+    setTakes([]);
     axisLock.current = null;
     const el = trackRef.current;
     if (el) {
@@ -102,6 +109,19 @@ export function MediaViewerModal({
       el.style.transform = 'translate(-33.333%, 0px) scale(1)';
     }
   }, [asset?.id]);
+
+  const burstSlug = asset?.burst?.slug;
+  useEffect(() => {
+    if (!burstSlug) return;
+    let live = true;
+    fetch(`/api/assets?burst=${encodeURIComponent(burstSlug)}&sort=oldest&limit=20`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => live && data && setTakes(data.items))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [burstSlug]);
 
   // Preload neighbours so slides are already decoded when they enter
   useEffect(() => {
@@ -143,12 +163,13 @@ export function MediaViewerModal({
 
   if (!asset) return null;
 
+  const shown = (takeId && takes.find((t) => t.id === takeId)) || asset;
   const isVideo = asset.type === 'VIDEO';
   const toggleZoom = () => {
     setZoomed((z) => !z);
     setPan({ x: 0, y: 0 });
   };
-  const taken = takenLabel(asset.takenAt);
+  const taken = takenLabel(shown.takenAt);
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1 && zoomed) {
@@ -231,12 +252,12 @@ export function MediaViewerModal({
 
   const dismissProgress = Math.min(1, dragY / 300);
 
-  const slides: (Asset | null)[] = [prevAsset ?? null, asset, nextAsset ?? null];
+  const slides: (Asset | null)[] = [prevAsset ?? null, shown, nextAsset ?? null];
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ backgroundColor: `rgba(0,0,0,${0.95 - dismissProgress * 0.5})` }}
+      style={{ backgroundColor: `rgba(0,0,0,${1 - dismissProgress * 0.5})` }}
       onClick={onClose}
     >
       <div
@@ -248,26 +269,18 @@ export function MediaViewerModal({
       >
         {/* Top bar */}
         <div
-          className={`absolute sm:relative top-0 inset-x-0 z-10 flex items-center justify-between p-3 sm:p-0 sm:mb-3 text-paper transition-opacity duration-200 bg-gradient-to-b from-black/70 to-transparent sm:bg-none ${
-            chromeVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
-          style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
+          className={cn(
+            'absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-2 pb-6 text-paper transition-opacity duration-200 sm:px-0',
+            chromeVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
+          )}
+          style={{ paddingTop: 'max(8px, env(safe-area-inset-top))' }}
         >
-          <div className="flex min-w-0 items-center gap-3">
-            {/* A filename like IMG_4031.JPG is noise to a guest; when it was taken isn't. */}
-            {taken && <span className="numeral truncate text-ash">{taken}</span>}
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <FavoriteButton assetId={asset.id} />
-            <SaveToDeviceButton asset={asset} />
-            <button
-              onClick={onClose}
-              className="rounded-full bg-white/10 p-2 transition-colors hover:bg-white/20"
-              title="Close"
-            >
-              <X className="h-5 w-5 text-paper" strokeWidth={1.7} />
-            </button>
-          </div>
+          <button onClick={onClose} aria-label="Close" className="flex h-11 w-11 items-center justify-center rounded-full">
+            <ChevronDown className="h-7 w-7" strokeWidth={2} />
+          </button>
+          {/* A filename like IMG_4031.JPG is noise to a guest; when it was taken isn't. */}
+          <span className="meta truncate text-paper/85">{taken}</span>
+          <FavoriteButton assetId={shown.id} className="h-11 w-11 bg-transparent p-0 flex items-center justify-center" />
         </div>
 
         {/* Sliding track: [prev | current | next] */}
@@ -283,7 +296,7 @@ export function MediaViewerModal({
           >
             {slides.map((slide, i) => (
               <div key={slide ? slide.id : `empty-${i}`} className="h-full flex items-center justify-center" style={{ width: '33.3333%' }}>
-                {!slide ? null : slide.id === asset.id && isVideo ? (
+                {!slide ? null : i === 1 && isVideo ? (
                   <video
                     src={slide.previewUrl}
                     controls
@@ -296,7 +309,7 @@ export function MediaViewerModal({
                     src={
                       slide.type === 'VIDEO'
                         ? slide.thumbnailUrl
-                        : slide.id === asset.id && zoomed && slide.fullUrl
+                        : i === 1 && zoomed && slide.fullUrl
                           ? slide.fullUrl
                           : slide.previewUrl
                     }
@@ -304,7 +317,7 @@ export function MediaViewerModal({
                     draggable={false}
                     className="max-w-full max-h-full object-contain sm:rounded-lg select-none"
                     style={
-                      slide.id === asset.id
+                      i === 1
                         ? {
                             transform: zoomed
                               ? `scale(${ZOOM}) translate(${pan.x}px, ${pan.y}px)`
@@ -314,7 +327,7 @@ export function MediaViewerModal({
                           }
                         : undefined
                     }
-                    onDoubleClick={() => slide.id === asset.id && toggleZoom()}
+                    onDoubleClick={() => i === 1 && toggleZoom()}
                   />
                 )}
               </div>
@@ -342,6 +355,43 @@ export function MediaViewerModal({
               <ChevronRight className="h-6 w-6" />
             </button>
           )}
+        </div>
+
+        {/* Actions */}
+        <div
+          className={cn(
+            'absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 pt-12 transition-opacity duration-200 sm:px-0',
+            chromeVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
+          )}
+          style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+        >
+          {takes.length > 1 && (
+            <div className="mb-3">
+              <div className="mb-2 text-[13px] text-paper/80">
+                {takes.length} takes of this moment · {takeId && takeId !== asset.id ? 'your pick' : 'sharpest shown'}
+              </div>
+              <div className="flex gap-2 overflow-x-auto scrollbar-none">
+                {takes.map((t) => {
+                  const on = t.id === shown.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setTakeId(t.id)}
+                      aria-pressed={on}
+                      aria-label={on ? 'Showing this take' : 'Show this take'}
+                      className={cn('h-14 w-14 shrink-0 overflow-hidden rounded-[10px]', on ? 'ring-2 ring-accent ring-offset-2 ring-offset-black' : 'opacity-60')}
+                    >
+                      <img src={t.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <div className="flex gap-2.5">
+            <AddToPostButton assetId={shown.id} className="flex-1" />
+            <SaveToDeviceButton asset={shown} className="flex-[1.35]" />
+          </div>
         </div>
       </div>
     </div>

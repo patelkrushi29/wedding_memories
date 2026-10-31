@@ -1,59 +1,78 @@
 export const dynamic = 'force-dynamic';
 
 import { AppShell } from '@/components/AppShell';
-import { DaysBrowser } from '@/components/DaysBrowser';
-import { PullToRefresh } from '@/components/PullToRefresh';
+import { HomeExperience, type HomeFunction } from '@/components/HomeExperience';
 import { RecentGrid } from '@/components/RecentGrid';
-import { getDaysWithFunctions, getGalleryTotals, getRecentAssets } from '@/lib/tags/queries';
+import { getDaysWithFunctions, getFunctionHighlights, getGalleryTotals, getRecentAssets } from '@/lib/tags/queries';
 import { getSiteConfig } from '@/lib/settings';
+import { dayPart, weekdayTime } from '@/lib/time';
 
-function totalsLine(t: { days: number; functions: number; total: number }): string {
+function statsLine(t: { days: number; functions: number; total: number }): string {
   const parts: string[] = [];
   if (t.days) parts.push(`${t.days} ${t.days === 1 ? 'day' : 'days'}`);
-  if (t.functions) parts.push(`${t.functions} ${t.functions === 1 ? 'function' : 'functions'}`);
-  parts.push(t.total.toLocaleString());
+  if (t.functions) parts.push(`${t.functions} ${t.functions === 1 ? 'event' : 'events'}`);
+  parts.push(`${t.total.toLocaleString()} photos`);
   return parts.join(' · ');
 }
 
-export default async function DaysPage() {
+export default async function HomePage() {
   const [days, totals, { coupleNames }] = await Promise.all([
     getDaysWithFunctions(),
     getGalleryTotals(),
     getSiteConfig(),
   ]);
-  const recent = days.length === 0 ? await getRecentAssets(24) : [];
+
+  if (days.length === 0) {
+    const recent = await getRecentAssets(24);
+    return (
+      <AppShell subtitle={statsLine(totals)}>
+        <main className="mx-auto max-w-3xl px-5 pt-8 sm:px-8">
+          <h1 className="display text-[40px]">{coupleNames}</h1>
+          <div className="meta mt-2">{statsLine(totals)}</div>
+          <div className="mt-8">
+            {recent.length === 0 ? (
+              <p className="py-20 text-center text-sm text-ash">Nothing here yet. Photographs appear as they are added.</p>
+            ) : (
+              <>
+                <RecentGrid assets={recent} />
+                <p className="meta mt-6 text-center">Highlights appear once the events are named.</p>
+              </>
+            )}
+          </div>
+        </main>
+      </AppShell>
+    );
+  }
+
+  const functions: HomeFunction[] = await Promise.all(
+    days.flatMap((day) =>
+      day.functions.map(async (fn) => {
+        const weekday = day.name.split(' ')[0];
+        const highlights = (await getFunctionHighlights(fn.id, 8)).map((a) => ({
+          ...a,
+          title: fn.name,
+          sub: [weekday, weekdayTime(a.takenAt)].filter(Boolean).join(' · '),
+        }));
+        return {
+          slug: fn.slug,
+          name: fn.name,
+          dayLabel: [weekday, dayPart(fn.startAt)].filter(Boolean).join(' · '),
+          assetCount: fn.assetCount,
+          coverThumbnailUrl: highlights[0]?.thumbnailUrl ?? fn.coverThumbnailUrl,
+          highlights,
+        };
+      })
+    )
+  );
+
+  // Cover: the middle highlight of the biggest event — usually the wedding itself.
+  const biggest = [...functions].sort((a, b) => b.assetCount - a.assetCount)[0];
+  const cover = biggest?.highlights[Math.floor(biggest.highlights.length / 2)] ?? null;
 
   return (
-    <AppShell subtitle={totalsLine(totals)}>
-      <main className="max-w-3xl mx-auto sm:px-8 pt-4 sm:pt-10">
-        <PullToRefresh>
-          <header className="px-5 sm:px-0 pb-6 md:hidden">
-            <h1 className="display text-[26px]">{coupleNames}</h1>
-            <div className="mono mt-2">{totalsLine(totals)}</div>
-          </header>
-
-          {days.length > 0 ? (
-            <DaysBrowser days={days} />
-          ) : (
-            <section className="px-5 sm:px-0">
-              <div className="mono mb-3">Everything so far</div>
-              {recent.length === 0 ? (
-                <p className="text-ash py-20 text-center text-sm">
-                  Nothing here yet. Photographs appear as they are added.
-                </p>
-              ) : (
-                <>
-                  <RecentGrid assets={recent} />
-                  <p className="mono mt-6 text-center leading-relaxed">
-                    Days and functions appear
-                    <br />
-                    once they are named
-                  </p>
-                </>
-              )}
-            </section>
-          )}
-        </PullToRefresh>
+    <AppShell subtitle={statsLine(totals)}>
+      <main>
+        <HomeExperience coupleNames={coupleNames} statsLine={statsLine(totals)} cover={cover} functions={functions} />
       </main>
     </AppShell>
   );
