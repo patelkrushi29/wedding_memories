@@ -21,7 +21,7 @@ export default function GlobalError({
   return (
     <div className="flex min-h-screen items-center justify-center bg-ink px-6">
       <div className="w-full max-w-sm text-center">
-        <div className="mono mono-on">Something broke</div>
+        <div className="eyebrow eyebrow-on">Something broke</div>
         <h1 className="display mt-4 text-[28px]">
           The gallery could not <em>be reached</em>
         </h1>
@@ -38,7 +38,7 @@ export default function GlobalError({
           Try again
         </button>
 
-        {error.digest && <div className="numeral mt-6 text-dim">Reference {error.digest}</div>}
+        {error.digest && <div className="meta mt-6 text-dim">Reference {error.digest}</div>}
       </div>
     </div>
   );

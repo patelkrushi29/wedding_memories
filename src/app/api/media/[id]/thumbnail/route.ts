@@ -29,11 +29,11 @@ export async function GET(
   });
 }
 
-/** Darkroom-toned placeholder: plate background, halide aperture mark. */
+/** Neutral placeholder: plate background, faint aperture mark. */
 function placeholder() {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
-    <rect width="600" height="600" fill="#1F1815"/>
-    <circle cx="300" cy="300" r="46" fill="none" stroke="#2E2622" stroke-width="6"/>
-    <circle cx="300" cy="300" r="10" fill="#2E2622"/>
+    <rect width="600" height="600" fill="#1C1B1E"/>
+    <circle cx="300" cy="300" r="46" fill="none" stroke="#34323A" stroke-width="6"/>
+    <circle cx="300" cy="300" r="10" fill="#34323A"/>
   </svg>`;
 }

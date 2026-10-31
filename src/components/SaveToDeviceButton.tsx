@@ -9,6 +9,8 @@ import type { Asset } from '@/types/asset';
 interface Props {
   asset: Asset;
   className?: string;
+  /** accent = the screen's main action; quiet = small translucent pill over a photo. */
+  variant?: 'accent' | 'quiet';
 }
 
 type State = 'idle' | 'working' | 'needs-tap' | 'done';
@@ -17,7 +19,7 @@ type State = 'idle' | 'working' | 'needs-tap' | 'done';
  * Save the full-resolution original to the device. On phones it opens the share
  * sheet ("Save Image" puts it in Photos); elsewhere it downloads the file.
  */
-export function SaveToDeviceButton({ asset, className }: Props) {
+export function SaveToDeviceButton({ asset, className, variant = 'accent' }: Props) {
   const [state, setState] = useState<State>('idle');
   const [share, setShare] = useState(false);
   const fileRef = useRef<File | undefined>(undefined);
@@ -77,14 +79,14 @@ export function SaveToDeviceButton({ asset, className }: Props) {
       onClick={run}
       aria-live="polite"
       className={cn(
-        'inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-medium transition-colors',
-        state === 'needs-tap'
-          ? 'bg-halide text-ink'
-          : 'bg-white/10 text-paper hover:bg-white/20',
+        variant === 'accent'
+          ? 'btn btn-accent'
+          : 'inline-flex h-10 items-center gap-2 rounded-full bg-black/40 px-4 text-[13.5px] font-semibold text-paper backdrop-blur-md',
+        state === 'needs-tap' && 'ring-2 ring-paper',
         className
       )}
     >
-      <Icon className={cn('h-4 w-4', state === 'working' && 'animate-spin')} strokeWidth={1.8} />
+      <Icon className={cn('h-[18px] w-[18px]', state === 'working' && 'animate-spin')} strokeWidth={2} />
       <span>{label}</span>
     </button>
   );

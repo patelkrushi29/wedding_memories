@@ -2,22 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Darkroom design tokens ─────────────────────────────────────────── */
+/* ── "Highlight reel" design tokens ────────────────────────────────────
+   Dark and cinematic: the photographs are the colour. One warm accent,
+   marigold, used for the thing to do next (Watch, Save to Photos, Share). */
 :root {
-  --ink: #15100d; /* page + deepest surface */
-  --pitch: #0c0907; /* behind the page (device black) */
-  --plate: #1f1815; /* raised panels, cards */
-  --veil: #2e2622; /* hairlines, borders */
-  --paper: #f6efe6; /* primary text */
-  --ash: #a39287; /* secondary text */
-  --dim: #6e625b; /* tertiary text, mono labels */
-  --halide: #7ecfc2; /* accent — silver halide */
-  --halide-d: #2a4b47; /* accent fill */
+  --ink: #0e0e10; /* page */
+  --pitch: #000000; /* behind full-screen media */
+  --plate: #1c1b1e; /* cards, sheets, inputs */
+  --plate-2: #242327; /* raised controls on a plate */
+  --veil: #34323a; /* hairlines, borders */
+  --paper: #f5f2ec; /* primary text */
+  --ash: #a8a39a; /* secondary text */
+  --dim: #858077; /* tertiary text — still 4.5:1 on ink */
+  --accent: #f4b23e; /* marigold */
+  --accent-ink: #0e0e10; /* text on accent */
+  --accent-deep: #3a2c12; /* accent tint fill */
 
-  --r-sm: 8px;
+  --r-sm: 10px;
   --r-md: 14px;
-  --r-lg: 22px;
-  --r-xl: 30px;
+  --r-lg: 20px;
+  --r-xl: 28px;
 }
 
 * {
@@ -28,6 +32,7 @@ body {
   background: var(--ink);
   color: var(--paper);
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
   /* Let our pull-to-refresh own the overscroll gesture */
   overscroll-behavior-y: contain;
 }
@@ -37,84 +42,44 @@ html {
   background: var(--ink);
 }
 
+/* Component classes live in the components layer so Tailwind utilities
+   (px-0, w-[52px], h-11…) can still override them. */
+@layer components {
 /* ── Type roles ─────────────────────────────────────────────────────── */
-/* Mono eyebrow: uppercase, letterspaced, small. The label voice. */
-.mono {
-  font-family: var(--font-mono), ui-monospace, Menlo, monospace;
-  font-size: 10.5px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  font-weight: 500;
-  color: var(--dim);
-}
-.mono-on {
-  color: var(--halide);
-}
-/* Counts and timecodes: mono but not shouting */
-.numeral {
-  font-family: var(--font-mono), ui-monospace, Menlo, monospace;
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-  color: var(--dim);
-}
-/* Display serif: light weight, tight tracking */
+/* Display: Bricolage Grotesque, heavy and tight. Names, titles, big moments. */
 .display {
-  font-family: var(--font-serif), Georgia, serif;
-  font-weight: 300;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 800;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 0.98;
 }
-.display em {
-  font-style: italic;
+/* Eyebrow: small uppercase label in the UI face. */
+.eyebrow {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ash);
 }
-
-/* ── Photographic texture ───────────────────────────────────────────── */
-/* Film grain over image surfaces. Applied via .grain on a positioned parent. */
-.grain::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0.16;
-  mix-blend-mode: overlay;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+.eyebrow-on {
+  color: var(--accent);
 }
-
-/* Sprocket-hole edges — the filmstrip rail */
-.sprockets {
-  position: relative;
-  padding: 11px 0;
-}
-.sprockets::before,
-.sprockets::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 5px;
-  background-image: radial-gradient(circle, var(--veil) 0 1.6px, transparent 1.7px);
-  background-size: 13px 5px;
-}
-.sprockets::before {
-  top: 0;
-}
-.sprockets::after {
-  bottom: 0;
+/* Meta: counts, times, small facts. Tabular so numbers don't jitter. */
+.meta {
+  font-size: 13px;
+  color: var(--ash);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Bottom/top scrims for text over photos */
+/* ── Photographic helpers ───────────────────────────────────────────── */
+/* Scrims for text over photos. Never put text on a photo without one. */
 .scrim-b {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 62%;
-  background: linear-gradient(
-    to top,
-    rgba(10, 7, 5, 0.94) 12%,
-    rgba(10, 7, 5, 0.55) 46%,
-    transparent
-  );
+  height: 65%;
+  background: linear-gradient(to top, var(--ink) 4%, rgba(14, 14, 16, 0.6) 45%, transparent);
   pointer-events: none;
 }
 .scrim-t {
@@ -122,37 +87,98 @@ html {
   left: 0;
   right: 0;
   top: 0;
-  height: 26%;
-  background: linear-gradient(to bottom, rgba(10, 7, 5, 0.7), transparent);
+  height: 28%;
+  background: linear-gradient(to bottom, rgba(14, 14, 16, 0.65), transparent);
   pointer-events: none;
 }
 
-/* ── Chips ──────────────────────────────────────────────────────────── */
+/* Story ring around a function's avatar; .ring-seen dims it once watched. */
+.story-ring {
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.story-ring.ring-seen {
+  background: var(--veil);
+}
+
+/* ── Controls ───────────────────────────────────────────────────────── */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 34px;
-  padding: 0 13px;
+  height: 36px;
+  padding: 0 14px;
   border-radius: 999px;
   border: 1px solid var(--veil);
-  background: var(--plate);
-  font-size: 13px;
-  color: var(--ash);
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--paper);
   white-space: nowrap;
   transition: border-color 0.15s, color 0.15s, background-color 0.15s;
 }
 .chip b {
-  color: var(--paper);
+  color: var(--ash);
   font-weight: 500;
 }
 .chip-on {
-  border-color: var(--halide);
-  color: var(--halide);
-  background: var(--halide-d);
+  border-color: var(--paper);
+  background: var(--paper);
+  color: var(--ink);
 }
 .chip-on b {
-  color: var(--halide);
+  color: var(--ink);
+  opacity: 0.6;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 22px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  transition: transform 0.12s ease, opacity 0.15s ease, background-color 0.15s ease;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn:disabled {
+  opacity: 0.4;
+}
+.btn-accent {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.btn-ghost {
+  background: var(--plate-2);
+  color: var(--paper);
+  border: 1px solid var(--veil);
+}
+}
+
+/* ── Motion ─────────────────────────────────────────────────────────── */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
 }
 
 /* ── Utilities ──────────────────────────────────────────────────────── */
@@ -163,9 +189,9 @@ html {
   display: none;
 }
 
-/* Room for the fixed bottom tab bar on mobile */
+/* Room for the floating tab bar on mobile */
 @media (max-width: 767px) {
   main {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+    padding-bottom: calc(104px + env(safe-area-inset-bottom));
   }
 }

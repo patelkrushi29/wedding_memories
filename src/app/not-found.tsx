@@ -4,7 +4,7 @@ export default function NotFound() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-ink px-6">
       <div className="w-full max-w-sm text-center">
-        <div className="mono">Not here</div>
+        <div className="eyebrow">Not here</div>
         <h1 className="display mt-4 text-[28px]">
           Nothing at <em>this address</em>
         </h1>

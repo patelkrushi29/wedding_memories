@@ -37,11 +37,11 @@ export function InfiniteScrollSentinel({ onLoadMore, hasMore, loading, failed }:
   return (
     <div ref={ref} className="flex justify-center py-8">
       {failed ? (
-        <button onClick={() => cbRef.current()} className="mono mono-on">
+        <button onClick={() => cbRef.current()} className="eyebrow eyebrow-on">
           Couldn&rsquo;t load more · Try again
         </button>
       ) : loading ? (
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-halide border-t-transparent" />
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
       ) : null}
     </div>
   );

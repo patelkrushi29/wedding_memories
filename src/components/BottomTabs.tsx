@@ -2,43 +2,47 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, Users, Heart } from 'lucide-react';
+import { Home, CircleUserRound, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const tabs = [
-  { href: '/', label: 'The days', icon: CalendarDays, match: (p: string) => p === '/' || p.startsWith('/functions') },
-  { href: '/people', label: 'People', icon: Users, match: (p: string) => p.startsWith('/people') },
+export const NAV_TABS = [
+  { href: '/', label: 'Home', icon: Home, match: (p: string) => p === '/' || p.startsWith('/functions') },
+  { href: '/people', label: 'You', icon: CircleUserRound, match: (p: string) => p.startsWith('/people') },
   { href: '/saved', label: 'Saved', icon: Heart, match: (p: string) => p.startsWith('/saved') },
 ];
 
-/** Mobile tab bar. Desktop navigation lives in DesktopNav. */
+/** Floating pill tab bar on phones. Desktop navigation lives in DesktopNav. */
 export function BottomTabs() {
   const pathname = usePathname();
+  // Focused flows have their own back button and need the bottom for their main action.
+  if (pathname.startsWith('/post')) return null;
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-veil bg-[rgba(21,16,13,0.94)] backdrop-blur-lg"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className="md:hidden fixed inset-x-4 z-40"
+      style={{ bottom: 'calc(14px + env(safe-area-inset-bottom))' }}
+      aria-label="Main"
     >
-      <div className="flex items-stretch px-3">
-        {tabs.map((tab) => {
+      <div className="grid h-[60px] grid-cols-3 rounded-full border border-white/5 bg-[rgba(36,35,39,0.92)] shadow-[0_10px_30px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+        {NAV_TABS.map((tab) => {
           const Icon = tab.icon;
           const active = tab.match(pathname);
           return (
             <Link
               key={tab.href}
               href={tab.href}
+              aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex-1 flex flex-col items-center gap-1.5 pt-3.5 pb-4 transition-colors',
-                active ? 'text-paper' : 'text-dim active:text-ash'
+                'flex items-center justify-center gap-1.5 text-[13.5px] transition-colors',
+                active ? 'font-semibold text-accent' : 'text-ash active:text-paper'
               )}
             >
               <Icon
-                className={cn('h-[19px] w-[19px]', active && 'text-halide')}
-                strokeWidth={active ? 1.9 : 1.5}
+                className="h-[20px] w-[20px]"
+                strokeWidth={active ? 2.1 : 1.7}
                 fill={active && tab.href === '/saved' ? 'currentColor' : 'none'}
               />
-              <span className="font-mono text-[9.5px] uppercase tracking-[0.14em]">{tab.label}</span>
+              {tab.label}
             </Link>
           );
         })}

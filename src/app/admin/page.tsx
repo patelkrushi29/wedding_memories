@@ -109,13 +109,13 @@ export default function HostPage() {
         <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-5 sm:px-8">
           <div>
             <h1 className="display text-[22px]">Host</h1>
-            <div className="mono mt-1.5">
+            <div className="eyebrow mt-1.5">
               {totals
                 ? `${totals.photos.toLocaleString()} photographs · ${totals.videos} film · ${totals.functions} published`
                 : 'Loading…'}
             </div>
           </div>
-          <Link href="/" className="mono hover:text-paper">
+          <Link href="/" className="eyebrow hover:text-paper">
             View gallery →
           </Link>
         </div>
@@ -130,7 +130,7 @@ export default function HostPage() {
               Name them, then publish — hidden functions never appear to guests.
             </p>
           </div>
-          <button onClick={load} className="mono flex items-center gap-1.5 hover:text-paper" disabled={busy}>
+          <button onClick={load} className="eyebrow flex items-center gap-1.5 hover:text-paper" disabled={busy}>
             <RefreshCw className={cn('h-3.5 w-3.5', busy && 'animate-spin')} />
             Refresh
           </button>
@@ -138,14 +138,14 @@ export default function HostPage() {
 
         {locked && (
           <div className="mb-6 rounded-card border border-veil bg-plate p-4">
-            <div className="mono mb-3">Admin secret required</div>
+            <div className="eyebrow mb-3">Admin secret required</div>
             <div className="flex gap-2">
               <input
                 type="password"
                 value={secret}
                 onChange={(e) => setSecret(e.target.value)}
                 placeholder="ADMIN_REINDEX_SECRET"
-                className="h-10 flex-1 rounded-[8px] border border-veil bg-ink px-3 text-sm text-paper placeholder:text-dim focus:border-halide focus:outline-none"
+                className="h-10 flex-1 rounded-[8px] border border-veil bg-ink px-3 text-sm text-paper placeholder:text-dim focus:border-accent focus:outline-none"
               />
               <button
                 onClick={load}
@@ -166,7 +166,7 @@ export default function HostPage() {
         <div className="flex flex-col gap-7">
           {days.map((day) => (
             <section key={day.name}>
-              <div className="mono mb-3">{day.name}</div>
+              <div className="eyebrow mb-3">{day.name}</div>
               <div className="flex flex-col gap-2">
                 {day.items.map((fn) => (
                   <div
@@ -193,9 +193,9 @@ export default function HostPage() {
                           if (name && name.trim() && name !== fn.name) save(fn, { name });
                         }}
                         placeholder="Name this function"
-                        className="h-9 w-full rounded-[8px] border border-transparent bg-ink px-2.5 text-[15px] text-paper placeholder:text-dim hover:border-veil focus:border-halide focus:outline-none"
+                        className="h-9 w-full rounded-[8px] border border-transparent bg-ink px-2.5 text-[15px] text-paper placeholder:text-dim hover:border-veil focus:border-accent focus:outline-none"
                       />
-                      <div className="numeral mt-1.5 truncate">
+                      <div className="meta mt-1.5 truncate">
                         {fn.assetCount.toLocaleString()} items
                         {fn.startAt && ` · ${hhmm(fn.startAt)}–${hhmm(fn.endAt)}`}
                       </div>
@@ -212,7 +212,7 @@ export default function HostPage() {
 
                     <button
                       onClick={() => remove(fn)}
-                      className="p-2 text-dim transition-colors hover:text-[#E08A6A]"
+                      className="p-2 text-dim transition-colors hover:text-[#F08A70]"
                       title="Delete grouping"
                     >
                       <Trash2 className="h-4 w-4" />

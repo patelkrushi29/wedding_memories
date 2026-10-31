@@ -24,7 +24,7 @@ export function FavoriteButton({ assetId, className, size = 'default' }: Props) 
         'rounded-full transition-colors',
         size === 'sm' ? 'p-1' : 'p-2',
         selected
-          ? 'bg-halide-deep text-halide'
+          ? 'bg-accent-deep text-accent'
           : 'bg-white/10 text-paper/80 hover:bg-white/20 hover:text-paper',
         className
       )}
