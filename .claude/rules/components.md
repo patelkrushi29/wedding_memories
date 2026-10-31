@@ -4,7 +4,7 @@ globs: src/components/**/*.tsx
 
 # Rules for Components
 
-**Design source:** the Darkroom round-2 frames · **Types:** `src/types/asset.ts`
+**Design source:** the "Highlight reel" (B) frames on the redesign canvas · **Types:** `src/types/asset.ts`
 
 You are editing a React component. These rules apply to all files in `src/components/`.
 
@@ -16,35 +16,40 @@ You are editing a React component. These rules apply to all files in `src/compon
 - Always define a Props interface above the component.
 - Do NOT define an `Asset` interface locally — import from `src/types/asset.ts`.
 
-## Design tokens — Darkroom (dark). Never use raw hex, never the old gold.
+## Design tokens — "Highlight reel" (dark). Never use raw hex in components.
 ```css
---ink #15100D      /* page background */
---pitch #0C0907    /* deepest black */
---plate #1F1815    /* cards, panels, inputs */
---veil #2E2622     /* hairlines, borders */
---paper #F6EFE6    /* primary text */
---ash #A39287      /* secondary text */
---dim #6E625B      /* tertiary text, mono labels */
---halide #7ECFC2   /* the only accent (silver halide) */
---halide-d #2A4B47 /* accent fill */
+--ink #0E0E10      /* page */
+--pitch #000000    /* behind full-screen media */
+--plate #1C1B1E    /* cards, sheets, inputs */
+--plate-2 #242327  /* raised controls */
+--veil #34323A     /* hairlines, borders */
+--paper #F5F2EC    /* primary text */
+--ash #A8A39A      /* secondary text */
+--dim #858077      /* tertiary text (still 4.5:1 on ink) */
+--accent #F4B23E   /* marigold — the next action only */
+--accent-deep #3A2C12 /* accent tint fill (selected states) */
 ```
-Tailwind equivalents: `bg-ink bg-plate border-veil text-paper text-ash text-dim text-halide bg-halide-deep`.
+Tailwind: `bg-ink bg-plate bg-plate-2 border-veil text-paper text-ash text-dim text-accent bg-accent bg-accent-deep`.
 
-## Type roles — three fonts, three jobs
+## Type roles
 | Class | Font | Used for |
 |---|---|---|
-| `.display` | Newsreader 300, italic for emphasis | Headings, function names. Never bold. |
-| default (`font-sans`) | Instrument Sans | Body, buttons, inputs |
-| `.mono` | IBM Plex Mono, uppercase, `.16em` tracking | Eyebrows, labels, "3 days · 5 functions" |
-| `.numeral` | IBM Plex Mono, no uppercase | Counts, timecodes, filenames |
+| `.display` | Bricolage Grotesque 800, tight | Names, titles, big moments |
+| default (`font-sans`) | DM Sans | Body, buttons, inputs |
+| `.eyebrow` (+ `.eyebrow-on`) | DM Sans 600 uppercase | Small labels ("Friday · evening"); `-on` = accent |
+| `.meta` | DM Sans, tabular numbers | Counts, times |
 
-`.mono-on` turns a mono label halide. Use sparingly — it means "this is live/yours".
+## Controls
+`.btn` + `.btn-accent` (one per screen: the main action) or `.btn-ghost`. `.chip` / `.chip-on`
+for filters. These live in `@layer components`, so utilities like `px-0` override them.
 
-## Photographic texture
-- `.grain` on a positioned parent adds film grain over imagery.
-- `.sprockets` adds filmstrip rails to a horizontal strip.
-- `.scrim-b` / `.scrim-t` for text legibility over photos.
-- `.chip` / `.chip-on` for filter chips.
+## Patterns
+- Reels (`StoryReel`): photo shown whole over its own blurred fill; Keep / Add to post /
+  Save to Photos on every slide.
+- Bursts: grids show the best take with a layers badge; the viewer offers the other takes.
+- Text over a photo always sits on `.scrim-b` / `.scrim-t`.
+- In JSX, an expression followed by text that wraps onto the next line loses its space —
+  write `{n}{' '}photos`.
 
 ## Images — three tiers, never mix them up
 - Grids: `asset.thumbnailUrl` with `loading="lazy"`. Never `next/image`.
@@ -57,12 +62,13 @@ Tailwind equivalents: `bg-ink bg-plate border-veil text-paper text-ash text-dim 
 - Video is a **filter inside a function**, never its own tab or page.
 
 ## Saved (the heart)
-- localStorage key: `wedding-gallery-selected-assets`, managed in `FavoriteButton.tsx`.
+- localStorage key: `wedding-gallery-selected-assets`, managed in `src/lib/savedStore.ts`.
+- Post basket: `wedding-post-basket` in `src/lib/postBasket.ts`, max 10.
 - It is a **private** marker: no counts, nothing shown to other guests, no server record.
 
 ## Reusable surfaces
 - `MediaGrid` — paginated grid + in-place viewer. Use it for any collection.
-- `MediaCard` — bare thumbnail, no hover chrome (save/download live in the viewer).
+- `MediaCard` — 4:5 thumbnail, burst badge, no hover chrome (save/share live in the viewer).
 - `AppShell` — page chrome (desktop nav + mobile tab bar). Pages own their headers.
 
 ## Tailwind

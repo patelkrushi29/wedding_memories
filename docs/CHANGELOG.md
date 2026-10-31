@@ -4,6 +4,39 @@ Chronological record of every session's work, decisions made, and code changes. 
 
 ---
 
+## Session 9 — 2026-10-31 — "Highlight reel" redesign, best-photo picking, Make a post
+
+Owner chose direction B from the redesign canvas. Built on branch `reel`.
+
+### What was done
+
+- **Look:** dark cinematic palette, marigold accent, Bricolage Grotesque + DM Sans (self-hosted),
+  floating pill tab bar (Home / You / Saved). Old Darkroom classes renamed (`mono`→`eyebrow`,
+  `numeral`→`meta`, `halide`→`accent`).
+- **Best photos (G1 first cut):** `npm run pick:best` — Tenengrad sharpness + exposure, burst
+  folding via quality `MOMENT` tags, time-spread highlights via `isHighlight`. No migration.
+  Laplacian variance was tried first and picked a blurred take on soft images; Tenengrad on a
+  lightly denoised 200px copy got 14/14 bursts right on the test set.
+- **Home:** cover + "Watch the weekend" reel, event story circles (seen state on device),
+  find-yourself card, "Best of the <event>" rows.
+- **Reel player:** progress bars, tap/hold/swipe, whole-photo-over-blur, Keep / Add to post /
+  Save to Photos on every slide, end card into the full event.
+- **Event page:** cover + "Play the best N", best-moments strip, every photo with bursts folded
+  (layers badge); viewer offers the other takes of a moment.
+- **Make a post (G4):** story 9:16 collage, carousel 4:5, grid 1:1 rendered with canvas on the
+  device; share sheet on phones, download elsewhere. Basket of up to 10 from reels, viewer or Saved.
+- Auth page restyled; no photo before the password.
+
+### Decisions
+
+| # | Decision | Why |
+|---|---|---|
+| D21 | Highlights and bursts stored in existing columns/tables (`isHighlight`, `MOMENT` tags) | The owner can't safely run a migration from the compromised PC; this ships with no schema change. A score column comes with the face work. |
+| D22 | Reels show photos whole over a blurred fill, never story-cropped | A 9:16 crop cuts heads off group shots — the photos people most want. |
+| D23 | Make a post renders on the device and hands files to the share sheet | Nothing is posted for anyone; no server cost; respects "no public sharing". |
+
+---
+
 ## Session 8 — 2026-10-31 — Malware removed, guest access locked down, saving fixed
 
 ### Security incident

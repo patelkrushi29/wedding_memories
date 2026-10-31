@@ -3,7 +3,7 @@
 A private, password-gated wedding gallery. **Live:** Next.js on Vercel + **Supabase Postgres** +
 **Cloudflare R2**. The couple imports the media; guests browse.
 
-**Current version:** 0.3 — cloud stack live, Darkroom redesign, day → function spine.
+**Current version:** 0.4 — "Highlight reel" redesign: best photos first, story-style reels, folded bursts, Make a post.
 
 | Need | Read |
 |---|---|
@@ -36,32 +36,43 @@ Settled 2026-07-25 with the owner. Do not quietly reverse these.
 
 ## Information architecture
 
-Three tabs. **Days contain functions** — that hierarchy is the spine of the app.
+Three tabs (floating pill on phones): **Home / You / Saved**. Days contain functions; the guest
+sees them as events.
 
 ```
-/                     The days   — day headings, function cards weighted by photo count
-/functions/[slug]     One function — grid + photo/film lanes, in-place viewer
-/people               The face wall (awaiting the face pipeline)
-/saved                Private saves, this device only
-/auth                 Password gate
+/                     Home — cover + "Watch the weekend" reel, event story circles,
+                      "Find your best photos", a "Best of the <event>" row per event
+/functions/[slug]     One event — cover + "Play the best N", best moments strip,
+                      every photo with near-duplicate bursts folded behind the best take
+/people               "You" — the face wall (awaiting the face pipeline; honest holding page)
+/saved                Private saves, this device only → "Make a post from these"
+/post                 Make a post — story 9:16 / carousel 4:5 / grid 1:1, rendered on-device
+/auth                 Password gate (no photo before the password)
 /admin                Host: name and publish functions
 ```
 
-Video is a **filter inside a function**, never its own tab. There is no albums page, no
-highlights page, no feed — those were removed in the redesign.
+Video is a **filter inside an event**, never its own tab. No feed, no albums page.
+
+### Best photos (Phase G)
+
+`npm run pick:best` scores every photo (Tenengrad sharpness + exposure), folds bursts of
+near-identical frames into a `MOMENT` tag (`source: "quality"`, cover = best take, AssetTag rows =
+the *other* takes) and sets `Asset.isHighlight` on a time-spread set per event. No schema change.
+Until it has run, `getFunctionHighlights()` falls back to an even spread across the event.
+Re-run it after every import or re-cluster.
 
 ---
 
-## Design system — "Darkroom"
+## Design system — "Highlight reel"
 
-Dark, photographic, one accent. Full token list and type roles: `.claude/rules/components.md`.
+Dark, cinematic, photos are the colour. Full tokens and type roles: `.claude/rules/components.md`.
 
-- Surfaces `--ink #15100D` → `--plate #1F1815`, hairlines `--veil #2E2622`
-- Text `--paper #F6EFE6` → `--ash #A39287` → `--dim #6E625B`
-- Accent `--halide #7ECFC2` only (the old gold `#c9a96e` is gone)
-- **Newsreader** 300/italic for display, **Instrument Sans** for UI, **IBM Plex Mono** uppercase
-  for labels and counts
-- Film grain over imagery (`.grain`), sprocket rails on strips (`.sprockets`)
+- Surfaces `--ink #0E0E10` → `--plate #1C1B1E` → `--plate-2 #242327`, hairlines `--veil #34323A`
+- Text `--paper #F5F2EC` → `--ash #A8A39A` → `--dim #858077`
+- Accent **marigold** `--accent #F4B23E` for the next action only (Watch, Save to Photos, Share)
+- **Bricolage Grotesque** 800 for display (`.display`), **DM Sans** for everything else;
+  `.eyebrow` for small uppercase labels, `.meta` for counts and times. Fonts are self-hosted.
+- Photos in reels are shown whole over a blurred fill of themselves — never story-cropped.
 
 ---
 
@@ -96,7 +107,7 @@ Dark, photographic, one accent. Full token list and type roles: `.claude/rules/c
 | # | Gap | Where |
 |---|---|---|
 | 2 | Face pipeline not built: `/people` shows a holding state, no "That's me", no "N of you" | `src/lib/people/tiers.ts` has the tiering + threshold ready |
-| 3 | Derived facets absent: group size, objects/scenes, quality culling, sub-moments | needs CLIP + blur/dupe detection |
+| 3 | Faces not in the best-photo score yet (eyes open, faces lit); no group-size facet | after Phase C |
 | 4 | No bulk download (single-photo Save to Photos works via the share sheet) | needs a signed zip |
 | 6 | `GUEST_PASSWORD` and `ADMIN_REINDEX_SECRET` are still placeholders in Vercel | owner action |
 | 7 | Voice notes, venue wall, post-event nudge, "a year ago today" not started | roadmap |
@@ -114,6 +125,9 @@ Dark, photographic, one accent. Full token list and type roles: `.claude/rules/c
 | Admin auth | `src/lib/adminAuth.ts` |
 | Site config (couple names) | `src/lib/settings.ts` |
 | Page chrome | `src/components/AppShell.tsx` · `BottomTabs.tsx` · `DesktopNav.tsx` |
+| Home / event screens | `HomeExperience.tsx` · `FunctionView.tsx` · `StoryReel.tsx` |
+| Best-photo picking | `scripts/pick-best.ts` · `getFunctionHighlights()` / `NOT_FOLDED` in `src/lib/tags/queries.ts` |
+| Make a post | `PostComposer.tsx` · `src/lib/postRender.ts` · `src/lib/postBasket.ts` |
 | Reusable gallery | `src/components/MediaGrid.tsx` · `MediaCard.tsx` · `MediaViewerModal.tsx` |
 | Import pipeline | `scripts/upload-to-r2.ts` (upload only) · `sync-r2-media.ts` (owns all derived data) · `cluster-events.ts` |
 
@@ -126,6 +140,7 @@ npm run upload:r2 -- --from "D:/path/to/originals"   # local folder → R2 media
 npm run sync:r2                                       # thumbnails, viewer renders, blur, EXIF
 npm run cluster:events                                # group into days → candidate functions
 # then open /admin, name each function, publish it
+npm run pick:best                                     # score, fold bursts, mark highlights
 ```
 
 Subfolders are preserved as R2 keys, so a folder per event (`Ceremony/`, `Sangeet/`) becomes an

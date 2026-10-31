@@ -45,6 +45,14 @@ Once (1) lands: `npx tsx scripts/prune-missing.ts` if filenames changed, then `n
 
 ---
 
+## After the redesign ships
+
+Run `npm run pick:best` once against production (from a clean machine — see S1). Until then the
+app shows an even spread of each event instead of the sharpest picks, and bursts aren't folded.
+Re-run after every import.
+
+---
+
 ## Next up in the code
 
 In order. Each is described in `docs/PLAN.md`.
@@ -53,7 +61,7 @@ In order. Each is described in `docs/PLAN.md`.
    is a cost/ops tradeoff the owner should weigh in on.
 2. **Phase C1–C4** — detection, clustering, the face wall, "That's me". The single highest-value
    feature in the product.
-3. **Phase D1–D2** — quality culling and group size. Both cheap, both immediately visible.
+3. **Phase D2 + G2** — group size, and "Your best" once faces exist (quality culling/bursts done: `pick:best`).
 4. ~~**Phase F1** — single-photo save via the share sheet.~~ Done 2026-10-31; needs the R2 CORS rule in `DEPLOY.md`.
 
 Do **not** start Phase C or D against the placeholder library. Clustering 282 low-resolution frames
