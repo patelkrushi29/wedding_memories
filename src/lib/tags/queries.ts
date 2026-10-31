@@ -18,7 +18,8 @@ type AttachedAsset = ReturnType<typeof attachMediaUrls> & {
 };
 
 /** Shape a DB row for client components: dates as ISO strings, no internal paths. */
-function toClientAsset(a: AttachedAsset): Asset {
+/** The only asset fields a guest's browser receives. Everything else stays server-side. */
+export function toClientAsset(a: AttachedAsset): Asset {
   return {
     id: a.id,
     type: a.type,
@@ -36,6 +37,17 @@ function toClientAsset(a: AttachedAsset): Asset {
     album: a.album ?? null,
   };
 }
+
+/**
+ * Columns never read for guest pages. The CLIP and outfit embeddings are ~512
+ * floats each — reading them for a 60-photo page moved over a megabyte from the
+ * database for nothing.
+ */
+export const GUEST_ASSET_OMIT = {
+  embedding: true,
+  outfitEmbedding: true,
+  checksum: true,
+} as const;
 
 export interface FunctionSummary {
   id: string;
@@ -187,7 +199,9 @@ export async function getFunctionAssets(tagId: string, take = 60): Promise<Asset
     where: { tagId, asset: GUEST_ASSET_WHERE },
     orderBy: { asset: { takenAt: 'asc' } },
     take,
-    include: { asset: { include: { album: { select: { title: true, slug: true } } } } },
+    include: {
+      asset: { omit: GUEST_ASSET_OMIT, include: { album: { select: { title: true, slug: true } } } },
+    },
   });
   return rows.map((r) => toClientAsset(attachMediaUrls(r.asset) as AttachedAsset));
 }
@@ -209,6 +223,7 @@ export async function getRecentAssets(take = 24): Promise<Asset[]> {
     where: GUEST_ASSET_WHERE,
     orderBy: [{ takenAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
     take,
+    omit: GUEST_ASSET_OMIT,
     include: { album: { select: { title: true, slug: true } } },
   });
   return assets.map((a) => toClientAsset(attachMediaUrls(a) as AttachedAsset));

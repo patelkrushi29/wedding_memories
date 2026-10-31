@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { attachMediaUrls } from '@/lib/storage/assetUrls';
+import { GUEST_ASSET_OMIT, toClientAsset } from '@/lib/tags/queries';
 import type { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
@@ -62,6 +63,7 @@ export async function GET(request: NextRequest) {
       orderBy,
       take: limit,
       ...(useCursor ? { cursor: { id: cursor! }, skip: 1 } : { skip }),
+      omit: GUEST_ASSET_OMIT,
       include: { album: { select: { title: true, slug: true } } },
     }),
     prisma.asset.count({ where }),
@@ -71,7 +73,8 @@ export async function GET(request: NextRequest) {
   const hasMore = useCursor ? nextCursor !== null : skip + items.length < total;
 
   return NextResponse.json({
-    items: items.map((asset) => attachMediaUrls(asset)),
+    // Trimmed to the client shape: no internal paths, flags or embeddings.
+    items: items.map((asset) => toClientAsset(attachMediaUrls(asset))),
     page,
     limit,
     total,
