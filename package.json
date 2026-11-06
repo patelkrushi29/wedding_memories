@@ -18,7 +18,8 @@
     "test:db": "tsx scripts/test-db-connection.ts",
     "suggest:names": "tsx scripts/suggest-names.ts",
     "embed:outfits": "tsx scripts/embed-outfits.ts",
-    "pick:best": "tsx scripts/pick-best.ts"
+    "pick:best": "tsx scripts/pick-best.ts",
+    "find:faces": "tsx scripts/find-faces.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1057.0",
@@ -44,10 +45,14 @@
   },
   "devDependencies": {
     "@huggingface/transformers": "^4.2.0",
+    "@tensorflow/tfjs-backend-wasm": "^4.22.0",
+    "@tensorflow/tfjs-converter": "^4.22.0",
+    "@tensorflow/tfjs-core": "^4.22.0",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vladmandic/human": "^3.3.6",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "typescript": "^5"

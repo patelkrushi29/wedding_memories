@@ -53,3 +53,6 @@ prisma/dev.db
 
 # Local CLIP weights (fetched with curl, see README)
 models/
+
+# Face detection cache (per-photo results; persisted by the GitHub Action)
+.cache/
