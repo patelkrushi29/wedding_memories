@@ -3,7 +3,10 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { ScanFace, Sparkles, Share } from 'lucide-react';
 import { AppShell } from '@/components/AppShell';
+import { PeopleWall } from '@/components/PeopleWall';
 import { getGalleryTotals } from '@/lib/tags/queries';
+import { listPeople } from '@/lib/people/queries';
+import { tierPeople } from '@/lib/people/tiers';
 
 const STEPS = [
   { icon: ScanFace, title: 'Tap your face', body: 'Everyone in the photos appears as a face. No selfie, no sign-up.' },
@@ -12,7 +15,16 @@ const STEPS = [
 ];
 
 export default async function PeoplePage() {
-  const totals = await getGalleryTotals();
+  const [totals, people] = await Promise.all([getGalleryTotals(), listPeople()]);
+
+  if (people.length > 0) {
+    const tiers = tierPeople(people, totals.photos);
+    return (
+      <AppShell>
+        <PeopleWall tiers={tiers} totalPeople={people.length} />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>

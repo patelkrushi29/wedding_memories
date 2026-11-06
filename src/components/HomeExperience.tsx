@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChevronRight, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StoryReel, type ReelItem } from './StoryReel';
+import { FindYourselfCard } from './FindYourselfCard';
 
 export interface HomeFunction {
   slug: string;
@@ -123,27 +124,8 @@ export function HomeExperience({ coupleNames, statsLine, cover, functions }: Pro
           ))}
         </section>
 
-        {/* Find yourself */}
-        <Link
-          href="/people"
-          className="mx-4 mt-5 flex items-center gap-3.5 rounded-card bg-plate p-4 md:mx-0"
-        >
-          <div className="flex shrink-0">
-            {weekend.slice(0, 3).map((a, i) => (
-              <img
-                key={a.id}
-                src={a.thumbnailUrl}
-                alt=""
-                className={cn('h-11 w-11 rounded-full border-2 border-plate object-cover', i > 0 && '-ml-3.5')}
-              />
-            ))}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="display text-[18px] tracking-normal">Find your best photos</div>
-            <div className="text-[13px] text-ash">Tap your face. No selfie, no sign-up.</div>
-          </div>
-          <ChevronRight className="h-5 w-5 shrink-0 text-accent" />
-        </Link>
+        {/* Find yourself → Your best */}
+        <FindYourselfCard previews={weekend} />
 
         {/* Best of each function */}
         {functions.map((fn) => (

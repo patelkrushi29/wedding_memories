@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   // fold=1 hides near-identical frames behind their best take; burst=<slug> lists every take of one moment.
   const fold = searchParams.get('fold') === '1';
   const burstSlug = searchParams.get('burst');
+  const personSlug = searchParams.get('person');
   const skip = (page - 1) * limit;
 
   const where: Prisma.AssetWhereInput = {
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
   const and: Prisma.AssetWhereInput[] = [];
   if (tagSlug) and.push({ tags: { some: { tag: { slug: tagSlug, isVisible: true } } } });
   if (fold) and.push(NOT_FOLDED);
+  if (personSlug) and.push({ tags: { some: { tag: { slug: personSlug, kind: 'PERSON', isVisible: true } } } });
   if (burstSlug) {
     const moment = await prisma.tag.findUnique({
       where: { slug: burstSlug },

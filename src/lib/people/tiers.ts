@@ -13,10 +13,10 @@ export interface PersonCluster {
   isPinned?: boolean; // couple, host-named, or someone this visitor saved
 }
 
-export interface PersonTier {
+export interface PersonTier<T extends PersonCluster = PersonCluster> {
   key: 'top' | 'mid' | 'rest';
   label: string;
-  people: PersonCluster[];
+  people: T[];
   /** Collapsed tiers render behind a "Show" affordance. */
   collapsed: boolean;
 }
@@ -30,7 +30,7 @@ export function faceThreshold(totalPhotos: number): number {
  * Split clusters into tiers. Pinned people are hoisted into the top tier
  * regardless of count, and the mid tier collapses once the wall gets long.
  */
-export function tierPeople(people: PersonCluster[], totalPhotos: number): PersonTier[] {
+export function tierPeople<T extends PersonCluster>(people: T[], totalPhotos: number): PersonTier<T>[] {
   const threshold = faceThreshold(totalPhotos);
   const sorted = [...people].sort((a, b) => {
     if (Boolean(b.isPinned) !== Boolean(a.isPinned)) return a.isPinned ? -1 : 1;
@@ -44,7 +44,7 @@ export function tierPeople(people: PersonCluster[], totalPhotos: number): Person
   const mid = sorted.filter((p) => !top.includes(p) && p.photoCount >= threshold);
   const rest = sorted.filter((p) => !top.includes(p) && !mid.includes(p));
 
-  const tiers: PersonTier[] = [];
+  const tiers: PersonTier<T>[] = [];
   if (top.length) {
     tiers.push({
       key: 'top',
