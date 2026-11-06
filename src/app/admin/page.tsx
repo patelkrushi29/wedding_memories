@@ -115,9 +115,14 @@ export default function HostPage() {
                 : 'Loading…'}
             </div>
           </div>
-          <Link href="/" className="eyebrow hover:text-paper">
-            View gallery →
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/admin/people" className="eyebrow eyebrow-on hover:text-paper">
+              People →
+            </Link>
+            <Link href="/" className="eyebrow hover:text-paper">
+              View gallery →
+            </Link>
+          </div>
         </div>
       </header>
 

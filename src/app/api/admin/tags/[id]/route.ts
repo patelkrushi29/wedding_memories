@@ -15,7 +15,14 @@ export async function PATCH(
 
   const data: { name?: string; slug?: string; isVisible?: boolean } = {};
 
-  if (typeof body.name === 'string' && body.name.trim()) {
+  const existing = await prisma.tag.findUnique({ where: { id }, select: { kind: true } });
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  if (typeof body.name === 'string' && existing.kind === 'PERSON') {
+    // A person's slug is their identity on guests' devices ("That's me" is stored by
+    // slug), so naming someone never changes it. Blank clears the name.
+    data.name = body.name.trim();
+  } else if (typeof body.name === 'string' && body.name.trim()) {
     const name = body.name.trim();
     data.name = name;
     const newSlug = slugify(name, { lower: true, strict: true });
