@@ -1,0 +1,93 @@
+# Runs the photo scripts on GitHub's servers, so nobody has to run them on a
+# personal computer. Start it from the repo's Actions tab → "Photo pipeline" →
+# "Run workflow", and tick the steps you want.
+#
+# Needs these repository secrets (Settings → Secrets and variables → Actions):
+#   DATABASE_URL          Supabase *pooler* connection string (GitHub runners are IPv4-only;
+#                         the direct db.<ref>.supabase.co host is IPv6-only and fails)
+#   R2_ACCOUNT_ID  R2_ACCESS_KEY_ID  R2_SECRET_ACCESS_KEY  R2_BUCKET_NAME
+#   R2_ENDPOINT    R2_PUBLIC_BASE_URL
+name: Photo pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync:
+        description: 'Sync new photos from R2 (thumbnails, viewer renders, EXIF)'
+        type: boolean
+        default: false
+      pick_best:
+        description: 'Pick the best photos and fold near-duplicates'
+        type: boolean
+        default: true
+      find_faces:
+        description: 'Find faces and group them into people'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# One run at a time — two runs writing people at once would fight.
+concurrency:
+  group: photo-pipeline
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_PUBLIC_BASE_URL: ${{ secrets.R2_PUBLIC_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check secrets are set
+        run: |
+          missing=""
+          for v in DATABASE_URL R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET_NAME R2_PUBLIC_BASE_URL; do
+            [ -z "${!v}" ] && missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then echo "::error::Missing repository secrets:$missing"; exit 1; fi
+
+      - name: Install
+        run: npm ci
+
+      # Face detections are cached per photo, so later runs only analyse new photos.
+      - name: Restore face cache
+        if: ${{ inputs.find_faces }}
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/faces
+          key: faces-${{ github.run_id }}
+          restore-keys: faces-
+
+      - name: Sync photos from R2
+        if: ${{ inputs.sync }}
+        run: npm run sync:r2
+
+      - name: Pick the best photos
+        if: ${{ inputs.pick_best }}
+        run: npm run pick:best
+
+      - name: Find faces
+        if: ${{ inputs.find_faces }}
+        run: npm run find:faces
+
+      - name: Save face cache
+        if: ${{ always() && inputs.find_faces }}
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/faces
+          key: faces-${{ github.run_id }}
