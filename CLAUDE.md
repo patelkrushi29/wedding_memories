@@ -3,7 +3,7 @@
 A private, password-gated wedding gallery. **Live:** Next.js on Vercel + **Supabase Postgres** +
 **Cloudflare R2**. The couple imports the media; guests browse.
 
-**Current version:** 0.4 — "Highlight reel" redesign: best photos first, story-style reels, folded bursts, Make a post.
+**Current version:** 0.5 — Highlight reel design + faces: find yourself, "That's me", your best photos, Make a post.
 
 | Need | Read |
 |---|---|
@@ -44,7 +44,9 @@ sees them as events.
                       "Find your best photos", a "Best of the <event>" row per event
 /functions/[slug]     One event — cover + "Play the best N", best moments strip,
                       every photo with near-duplicate bursts folded behind the best take
-/people               "You" — the face wall (awaiting the face pipeline; honest holding page)
+/people               "You" — the face wall, tiered by photo count; "Your best" once claimed
+/people/[slug]        One person — "That's me", recap ("You came for…"), best reel, every photo
+/admin/people         Host: name, hide, merge people
 /saved                Private saves, this device only → "Make a post from these"
 /post                 Make a post — story 9:16 / carousel 4:5 / grid 1:1, rendered on-device
 /auth                 Password gate (no photo before the password)
@@ -60,6 +62,20 @@ near-identical frames into a `MOMENT` tag (`source: "quality"`, cover = best tak
 the *other* takes) and sets `Asset.isHighlight` on a time-spread set per event. No schema change.
 Until it has run, `getFunctionHighlights()` falls back to an even spread across the event.
 Re-run it after every import or re-cluster.
+
+### Faces (Phase C)
+
+`npm run find:faces` detects faces on CPU (`scripts/faces/detector.ts`, @vladmandic/human —
+free, models in npm, see DECISIONS D24), groups them into `PERSON` tags (AssetTag = photos they're
+in), writes each person's `BEST` tag (child of the person) and a face crop to R2
+`faces/<tagId>.webp`. Person slugs are guests' identity — "That's me" stores them in
+localStorage — so re-runs match people to the previous run by photo overlap and keep slugs, names,
+hidden flags and host merges. Never rename a person's slug.
+
+### Running scripts
+
+Use the **Photo pipeline** GitHub Action (`.github/workflows/photo-pipeline.yml`, docs/DEPLOY.md),
+not a personal computer. Order: sync → pick:best → find:faces.
 
 ---
 
@@ -106,8 +122,7 @@ Dark, cinematic, photos are the colour. Full tokens and type roles: `.claude/rul
 
 | # | Gap | Where |
 |---|---|---|
-| 2 | Face pipeline not built: `/people` shows a holding state, no "That's me", no "N of you" | `src/lib/people/tiers.ts` has the tiering + threshold ready |
-| 3 | Faces not in the best-photo score yet (eyes open, faces lit); no group-size facet | after Phase C |
+| 3 | `pick:best` highlights don't use faces yet (eyes open); no group-size facet; no selfie escape hatch for 200+ person walls | faces exist now — next |
 | 4 | No bulk download (single-photo Save to Photos works via the share sheet) | needs a signed zip |
 | 6 | `GUEST_PASSWORD` and `ADMIN_REINDEX_SECRET` are still placeholders in Vercel | owner action |
 | 7 | Voice notes, venue wall, post-event nudge, "a year ago today" not started | roadmap |
@@ -121,6 +136,7 @@ Dark, cinematic, photos are the colour. Full tokens and type roles: `.claude/rul
 | Prisma client / schema | `src/lib/db.ts` · `prisma/schema.prisma` |
 | Day + function queries | `src/lib/tags/queries.ts` |
 | Media URL tiers | `src/lib/storage/assetUrls.ts` · `src/lib/r2/client.ts` |
+| Faces | `scripts/find-faces.ts` · `scripts/faces/detector.ts` · `src/lib/people/*` · `src/lib/meStore.ts` |
 | Face-wall tiering rules | `src/lib/people/tiers.ts` |
 | Admin auth | `src/lib/adminAuth.ts` |
 | Site config (couple names) | `src/lib/settings.ts` |
@@ -141,6 +157,8 @@ npm run sync:r2                                       # thumbnails, viewer rende
 npm run cluster:events                                # group into days → candidate functions
 # then open /admin, name each function, publish it
 npm run pick:best                                     # score, fold bursts, mark highlights
+npm run find:faces                                    # people, best photos, face crops
+# …or run all of these from the Photo pipeline GitHub Action
 ```
 
 Subfolders are preserved as R2 keys, so a folder per event (`Ceremony/`, `Sangeet/`) becomes an

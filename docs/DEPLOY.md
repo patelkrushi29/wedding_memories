@@ -212,6 +212,20 @@ R2 storage is ~$0.015/GB/month; egress to Cloudflare CDN is typically **no R2 eg
 | Local SQLite? | **Deprecated for new work**; not used in production. |
 | Two access modes? | Password + family link (to be built in C5). |
 
+## Running the photo scripts — the GitHub Action
+
+Nobody needs to run scripts on a personal computer. `.github/workflows/photo-pipeline.yml` runs
+them on GitHub's servers:
+
+1. Repo → **Settings → Secrets and variables → Actions → New repository secret**, add:
+   `DATABASE_URL` (the Supabase **pooler** string — GitHub runners are IPv4-only),
+   `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT`,
+   `R2_PUBLIC_BASE_URL`. Use the *new* keys after rotating (see TASKS.md S2).
+2. Repo → **Actions → Photo pipeline → Run workflow**. Tick what to run: sync new photos,
+   pick the best, find faces. Order is handled for you.
+3. First face run takes ~35 min per 10,000 photos; later runs only analyse new photos (the
+   per-photo results are cached between runs).
+
 ## R2 CORS rule (needed for "Save to Photos" and Download)
 
 The viewer fetches the original from R2 in the browser so it can hand the bytes to the share

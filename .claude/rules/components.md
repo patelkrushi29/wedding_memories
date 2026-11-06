@@ -48,8 +48,8 @@ for filters. These live in `@layer components`, so utilities like `px-0` overrid
   Save to Photos on every slide.
 - Bursts: grids show the best take with a layers badge; the viewer offers the other takes.
 - Text over a photo always sits on `.scrim-b` / `.scrim-t`.
-- In JSX, an expression followed by text that wraps onto the next line loses its space —
-  write `{n}{' '}photos`.
+- In JSX, an expression followed by text containing an HTML entity (`&rsquo;`, `&amp;`…) can lose
+  the space after it ("270photos", "5people" both shipped this way) — write `{n}{' '}photos`.
 
 ## Images — three tiers, never mix them up
 - Grids: `asset.thumbnailUrl` with `loading="lazy"`. Never `next/image`.

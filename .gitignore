@@ -31,8 +31,6 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files — secrets live here; never commit (.env.example is the template)
-.env
-.env.*
 !.env.example
 
 # vercel
@@ -56,3 +54,4 @@ models/
 
 # Face detection cache (per-photo results; persisted by the GitHub Action)
 .cache/
+config.bat

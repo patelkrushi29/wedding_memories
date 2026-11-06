@@ -4,6 +4,34 @@ Chronological record of every session's work, decisions made, and code changes. 
 
 ---
 
+## Session 10 — 2026-11-05 — Faces, "That's me", Your best, and a pipeline that runs on GitHub
+
+### What was done
+
+- **Free face pipeline** (`npm run find:faces`): detection, blink and identity embeddings on CPU
+  with @vladmandic/human, cached per photo; average-linkage grouping that never puts two faces from
+  one photo in the same person; PERSON tags matched to the previous run by photo overlap so slugs,
+  names, hidden flags and merges survive; BEST tag per person; face crops to R2. Model choice
+  measured — DECISIONS D24.
+- **Face wall** (`/people`): tiered by photo count, named people pinned, no "Person 47" labels.
+- **Person page** (`/people/[slug]`): "That's me" / "That's me too" / "Not me" (device only),
+  recap line, best-photos reel, Make a post from the best, every photo of them with bursts folded.
+- **Home** "Find your best photos" turns into "Your best" with the visitor's face once claimed.
+- **Host** `/admin/people`: name, hide, merge (bigger group keeps its slug). Naming a person never
+  changes their slug.
+- **Photo pipeline GitHub Action**: sync / pick:best / find:faces with repo secrets and a
+  persisted face cache, so the owner never runs scripts on a personal machine.
+
+### Bugs found
+
+| Bug | Status |
+|---|---|
+| JSX text containing an HTML entity after an expression drops the space ("5people") | Fixed with `{' '}`; rule in components.md |
+| `@vladmandic/human`'s exports map lacks `./` so Node refuses its subpaths | Loaded by absolute path in detector.ts |
+| The library caches results between calls (video mode) | `cacheSensitivity: 0`, `skipFrames: 0` |
+
+---
+
 ## Session 9 — 2026-10-31 — "Highlight reel" redesign, best-photo picking, Make a post
 
 Owner chose direction B from the redesign canvas. Built on branch `reel`.

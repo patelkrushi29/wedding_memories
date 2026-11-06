@@ -204,3 +204,37 @@ Every non-obvious decision in this codebase, why it was made, and what breaks if
 **Why:** Without the leading slash, `media/` also matched `src/app/api/media/`, preventing those route files from being committed. The leading slash anchors the pattern to the project root.
 
 **What breaks if changed:** If you remove the leading slash, the API media routes will be gitignored.
+
+---
+
+## D21–D23: see CHANGELOG session 9 (Highlight reel redesign)
+
+---
+
+## D24: Faces found on CPU with @vladmandic/human FaceRes; free, no cloud
+
+**Decision:** Face detection, landmarks, blink and identity embeddings run locally with
+`@vladmandic/human` (MIT; models ship inside the npm package) on the TensorFlow.js WebAssembly
+backend. Grouping is average-linkage at cosine 0.5 with a hard "two faces in one photo are two
+people" rule. AWS Rekognition and self-hosted InsightFace were the alternatives on the table.
+
+**Why:** Measured on a small labelled set (5 people, 14 photos incl. two-person shots):
+
+| Embedding | Same person (cosine) | Different people | Grouping at 0.5 |
+|---|---|---|---|
+| FaceRes (bundled) | 0.44–0.68, mean 0.61 | 0.24–0.54, mean 0.38 | 0 wrong merges, 1 person split |
+| FaceRes-deep | 0.41–0.74 | 0.17–0.58 | 2 wrong merges |
+| MobileFaceNet / MobileFace | constant output under tfjs-wasm | — | unusable |
+
+In the full pipeline the same set came out as 5 pure people with one stray photo. ~0.2 s/photo on
+one CPU core, so 10k photos ≈ 35 min on a free GitHub runner. No per-photo bill, no GPU, and face
+data never leaves the owner's own database and bucket — which also keeps BIPA-style consent
+questions small.
+
+**Trade-off:** a split person is fixable (guests can claim two faces; the host merges in
+`/admin/people`, and merges survive re-runs); a wrong merge shows guests a stranger's photos, so
+the threshold leans towards splitting. If a much larger wedding shows too many splits, the
+detector module (`scripts/faces/detector.ts`) is the only file a Rekognition backend would replace.
+
+**What breaks if changed:** person slugs are guests' identity ("That's me" in localStorage) and
+are preserved across runs by photo overlap; never regenerate them wholesale.

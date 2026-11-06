@@ -47,9 +47,9 @@ Once (1) lands: `npx tsx scripts/prune-missing.ts` if filenames changed, then `n
 
 ## After the redesign ships
 
-Run `npm run pick:best` once against production (from a clean machine — see S1). Until then the
-app shows an even spread of each event instead of the sharpest picks, and bursts aren't folded.
-Re-run after every import.
+Add the repository secrets and run the **Photo pipeline** GitHub Action with *pick the best* and
+*find faces* ticked (docs/DEPLOY.md). Until then: highlights are an even spread rather than the
+sharpest picks, bursts aren't folded, and the You tab shows "coming soon". Re-run after every import.
 
 ---
 
@@ -57,15 +57,15 @@ Re-run after every import.
 
 In order. Each is described in `docs/PLAN.md`.
 
-1. **Decide the face provider** (Rekognition vs self-hosted InsightFace) — needed before C1, and it
-   is a cost/ops tradeoff the owner should weigh in on.
-2. **Phase C1–C4** — detection, clustering, the face wall, "That's me". The single highest-value
-   feature in the product.
+1. ~~Decide the face provider~~ — free on-CPU detector chosen on measurements (DECISIONS D24).
+2. ~~Phase C1–C5~~ — done (free CPU pipeline, wall, That's me, Your best, host merge). Next in C:
+   C6 per-guest recap screen, C7 faces in video.
 3. **Phase D2 + G2** — group size, and "Your best" once faces exist (quality culling/bursts done: `pick:best`).
 4. ~~**Phase F1** — single-photo save via the share sheet.~~ Done 2026-10-31; needs the R2 CORS rule in `DEPLOY.md`.
 
-Do **not** start Phase C or D against the placeholder library. Clustering 282 low-resolution frames
-with identical timestamps proves nothing.
+Faces and best-photo picking run fine on the current 1024px library, but camera originals will
+give sharper face crops, better grouping of small faces, and real capture times. Upload them,
+then re-run the Photo pipeline with *sync* ticked too.
 
 ---
 
